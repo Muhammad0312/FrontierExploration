@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find turtlebot_online_path_planning)/launch/octomap.launch" />
+    <node pkg="frontier_explorationb" type="frontier_exploration.py" name="frontier_exploration"/>
+</launch>
