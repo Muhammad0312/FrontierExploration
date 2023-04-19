@@ -16,6 +16,8 @@ from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseStamped, Pose, PointStamped
 import roslib
 import tf
+import cv2
+import os
 
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
@@ -45,53 +47,26 @@ class Frontier_explorer:
         self.drone_x = 0.0
         self.drone_y = 0.0
         self.drone_yaw = 0.0
-
-        self.drone_u = 0.0
-        self.drone_v = 0.0
         
-        self.myMarker = Marker()
-        self.myMarker.header.frame_id = "odom"
-        self.myMarker.header.stamp  = rospy.get_rostime()
         self.motion_busy = None
-        #self.myMarker.ns = "window"
-        self.myMarker.id = 1
-        self.myMarker.type = self.myMarker.SPHERE # sphere
-        self.myMarker.action = self.myMarker.ADD
+            
+        # Subscribe to map: Every time new map appears, recompute frontiers 
+        self.map_subscriber = rospy.Subscriber("/projected_map", OccupancyGrid, self.projected_map_callback)
 
-        self.myPoint = Point()
-        self.myPoint.z = 1.5
-        self.myMarker.pose.position = self.myPoint
-        self.myMarker.color=ColorRGBA(0, 1, 0, 1)
-        self.myMarker.scale.x = 0.2
-        self.myMarker.scale.y = 0.2
-        self.myMarker.scale.z = 0.2
-        self.myMarker.lifetime = rospy.Duration(0)
-        
-        self.marker_Arr = MarkerArray()
-        self.marker_Arr.markers = []
-
-        #
-        # self.frontier_status_publisher = rospy.Publisher("/frontier/status",Int32MultiArray,queue_size=1) #occupancy grid publisher
-        
-        # self.frontier_grid_goal_publisher = rospy.Publisher("/frontier/grid_goal",Int32MultiArray,queue_size=1) #occupancy grid publisher
-        
-        self.grid_pos_publisher = rospy.Publisher("/frontier/grid_pos",Int32MultiArray,queue_size=1) #occupancy grid publisher
-        
-        # self.marker_pub = rospy.Publisher('~path_marker', Marker, queue_size=1)
+        # Subscribe to robot pose: Get robot pose
+        self.odom_sub = rospy.Subscriber('/odom', Odometry, self.get_odom)
         
         # Publish list of candidate points in order of preference
-        self.frontier_grid_goal_list = rospy.Publisher("/frontier/grid_goal_list",Int32MultiArray,queue_size=1) #occupancy grid publisher
+        # self.frontier_grid_goal_list = rospy.Publisher("/frontier/grid_goal_list",Int32MultiArray,queue_size=1) #occupancy grid publisher
 
-        # self.occupancy_filtered_grid_publisher = rospy.Publisher("/frontier/filtered_occupancy",OccupancyGrid,queue_size=1) #occupancy grid publisher
-        
-        # Frontier Points for Visualization
+        # Publish list of candidate points in order of preference
+        # self.frontier_grid_goal_list = rospy.Publisher("/frontier/grid_goal_list",Int32MultiArray,queue_size=1) #occupancy grid publisher
+
+        # Publish: Frontier Points for Visualization
         self.frontier_points_pub = rospy.Publisher("/frontier_detection/vis_points",MarkerArray,queue_size=1) #occupancy grid publisher
 
-        self.map_subscriber = rospy.Subscriber("/projected_map", OccupancyGrid, self.projected_map_callback) #/rtabmap/grid_map.
-        # self.drone_pose = rospy.Subscriber("/gazebo/model_states", ModelStates, self.__pose_callback)
-        
-        # robot odometry/pose
-        self.odom_sub = rospy.Subscriber('/odom', Odometry, self.get_odom)
+        self.marker_Arr = MarkerArray()
+        self.marker_Arr.markers = []
 
     '''
     Robot odometry/pose callback
@@ -101,13 +76,9 @@ class Frontier_explorer:
                                                               odom.pose.pose.orientation.y,
                                                               odom.pose.pose.orientation.z,
                                                               odom.pose.pose.orientation.w])
-
         self.drone_x = odom.pose.pose.position.x
         self.drone_y = odom.pose.pose.position.y
         self.drone_yaw = yaw
-
-        self.drone_v = int((self.drone_x - self.map_origin[0])/self.map_resolution)
-        self.drone_u = int((self.drone_y - self.map_origin[1])/self.map_resolution)
 
     '''
     Convert map position to world coordinates. 
@@ -128,20 +99,17 @@ class Frontier_explorer:
 
     def projected_map_callback(self, data):
         '''
-        Called when a new occupancy grid is received. The function first removes noise from 
-        the new occupancy i.e. dilates obstacles, and then publishes the filtered occupancy. 
-        Then a frontier/points are identified on the map. A candidate point is selected 
-        and published under topic '/frontier/grid_goal'. 
+        Called when a new occupancy grid is received. 
+        Does ALL THE WORK FFS
         '''
 
-        #meta deta of map: 
+        # Fetch meta deta of map: 
         map_r1 = data.info.height  #y
         map_c1 = data.info.width   #x
-        self.map_origin = [data.info.origin.position.x, data.info.origin.position.y]  # origin
+        self.map_origin = [data.info.origin.position.x, data.info.origin.position.y] 
         self.map_resolution = data.info.resolution
-        map_t = [ self.map_origin[0] + map_c1*self.map_resolution, self.map_origin[1] + map_r1*self.map_resolution]
-
-        #read map: 
+        
+        # stiore occupancu grid map: 
         occupancy_map = np.array(data.data).reshape(map_r1,map_c1)
         (self.r, self.c) = occupancy_map.shape 
 	
@@ -154,67 +122,50 @@ class Frontier_explorer:
 	    # Select Points: Candidate Point Selection
         candidate_pts_ordered = self.select_point(candidate_pts, occupancy_map)
     
-        #frontier_send = Int32MultiArray()
-        pose_send = Int32MultiArray()
-    
-        #frontier_send.data = selected_point
-        pose_send.data = [self.drone_v,self.drone_u]
-    
-        #self.frontier_grid_goal_publisher.publish(frontier_send)
-        self.grid_pos_publisher.publish(pose_send)
-    
+        # Publishing
         general_pts = self.__all_map_to_position__(candidate_pts_ordered)
-        # self.publish_path(general_pts)
         self.publish_frontier_points(general_pts)
-        
-        # candidate_pts_ordered = self.flatten_array(candidate_pts_ordered)
 
-        candidate_pts_ordered_send = Int32MultiArray()
-        candidate_pts_ordered_send.data = candidate_pts_ordered
-        #print('candidate pts: ', candidate_pts_ordered_send)
-        self.frontier_grid_goal_list.publish(candidate_pts_ordered_send)
+        # candidate_pts_ordered_send = Int32MultiArray()
+        # candidate_pts_ordered_send.data = candidate_pts_ordered
+        # #print('candidate pts: ', candidate_pts_ordered_send)
+        # self.frontier_grid_goal_list.publish(candidate_pts_ordered_send)
 
 
     def identify_frontiers(self, octomap):
         '''
         Identifies frontiers i.e. region between free space and unknown space. 
         Input: 
-        octomap -> occupancy grid with 3 values [0, 50, 100]
+        octomap -> occupancy grid [-1, 0, 100]
         
         Output:
-        result -> occupancy grid with frontier cells with value 255 (any max value) 
+        result -> Filtered occupancy grid with frontier cells with value 255 (any max value), others 0
+        See media -> frontiersX.png for reference 
         '''
-        mask_size = 3 #(3, 3)
-        result = np.zeros(shape = (self.r, self.c))
-        ##print('unique values:', np.unique(octomap))
-        for i in range(7, self.r-7):
-            for j in range(7, self.c-7): 
 
-                #apply mask: 
-                flag = 0
-                for a in range(-1, 1):
-                    for b in range(-1, 1):
-                        #filter calculations: 
-                        if octomap[i, j] == -1 and octomap[i+a, j+b] == 0:
-                            result[i, j] = 255
-                            flag = 1
-                        elif octomap[i, j] == 0 and octomap[i+a, j+b] == -1:
-                            result[i, j] = 255
-                            flag = 1
-                if flag==0:
-                    result[i, j] = 0
+        # binary image: 255 for frontier cells, otherwise
+        result = np.zeros(shape = (self.r, self.c))
+
+        # iterate over cells: avoid boundary cells 
+        for i in range(7, self.r-7):
+            for j in range(7, self.c-7):  
+                # if cell is free, any neighborhood is unknown, it is a frontier
+                if octomap[i, j] == 0:
+                    for a in range(-1, 2):
+                        for b in range(-1, 2):
+                            if octomap[i+a, j+b] == -1:
+                                result[i, j] = 255
+                                break
+                
         demo_map = copy.deepcopy(result)
-        cv2.imwrite("frontiers.png",demo_map)
-                        
+        cv2.imwrite('frontiers.png',demo_map)       
         return result
 
     def label_frontiers(self,frontiers,occupancy):
         labelled_frontiers = measure.label(frontiers, background=0)
         #print("Unique Frontiers: ",  np.unique(labelled_frontiers))
         regions = measure.regionprops(labelled_frontiers)
-        #print('-----------Region Props--------------')
         pts = []
-        #print(np.unique(frontiers))
         grid = copy.deepcopy(occupancy)
         occu = copy.deepcopy(grid)
         grid[np.where(grid==-1)]=127 # Unknown space
@@ -359,8 +310,7 @@ class Frontier_explorer:
                 flat_lst.append(item)
         return flat_lst
     
-        # Publish a path as a series of line markers
-
+    # Publish a path as a series of line markers
     def publish_frontier_points(self,data):   
         self.marker_Arr.markers = []
         for i in range(0,len(data)):
