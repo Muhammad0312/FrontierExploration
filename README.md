@@ -1,5 +1,12 @@
 ﻿# Frontier Exploration - Hands-on Planning
 
+## HOW TO RUN:
+
+1. Clone in your WS
+2. export TURTLEBOT3_MODEL=burger
+3. in same terminal: roslaunch frontier_explorationb octomap.launch
+4. new terminal: rosrun frontier_explorationb frontier_exploration.py
+
 ## Rudimentary Results - v1 
 
 **Occupancy Grid**
