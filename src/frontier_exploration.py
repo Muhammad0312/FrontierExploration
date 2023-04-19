@@ -18,6 +18,8 @@ import roslib
 import tf
 import cv2
 import os
+from std_srvs.srv import Trigger, TriggerRequest
+from pick_up_objects_task.srv import posePoint
 
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
@@ -35,10 +37,6 @@ import skimage
 import math
 from skimage import measure, draw
 
-def euclidean_distance(x, y):
-    return np.sqrt(np.sum((x - y)**2))
-
-
 class Frontier_explorer:       
     def __init__(self):
         self.entropy = 0 
@@ -48,9 +46,8 @@ class Frontier_explorer:
         self.map_origin = [0.0,0.0]
         self.map_resolution = 0.0
 
-        self.drone_x = 0.0
-        self.drone_y = 0.0
-        self.drone_yaw = 0.0
+        # Current robot pose [x, y, yaw], None if unknown            
+        self.current_pose = None
         
         self.motion_busy = None
             
@@ -58,13 +55,7 @@ class Frontier_explorer:
         self.map_subscriber = rospy.Subscriber("/projected_map", OccupancyGrid, self.projected_map_callback)
 
         # Subscribe to robot pose: Get robot pose
-        # self.odom_sub = rospy.Subscriber('/odom', Odometry, self.get_odom)
-        
-        # Publish list of candidate points in order of preference
-        # self.frontier_grid_goal_list = rospy.Publisher("/frontier/grid_goal_list",Int32MultiArray,queue_size=1) #occupancy grid publisher
-
-        # Publish list of candidate points in order of preference
-        # self.frontier_grid_goal_list = rospy.Publisher("/frontier/grid_goal_list",Int32MultiArray,queue_size=1) #occupancy grid publisher
+        self.odom_sub = rospy.Subscriber('/odom', Odometry, self.get_odom)
 
         # Publish: Frontier Points for Visualization
         self.frontier_points_pub = rospy.Publisher("/frontier_detection/vis_points",MarkerArray,queue_size=1) #occupancy grid publisher
@@ -72,6 +63,24 @@ class Frontier_explorer:
         self.marker_Arr = MarkerArray()
         self.marker_Arr.markers = []
 
+        # service used to set goal of move behaviour
+        rospy.wait_for_service('/set_goal')
+        # service used to check status of move behaviour
+        rospy.wait_for_service('/check_reached')
+
+
+        self.server_set_goal = rospy.ServiceProxy(
+                '/set_goal', posePoint)
+        self.server_check_reached = rospy.ServiceProxy(
+                '/check_reached', Trigger)
+
+    # Odometry callback: Gets current robot pose and stores it into self.current_pose
+    def get_odom(self, odom):
+        _, _, yaw = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x, 
+                                                              odom.pose.pose.orientation.y,
+                                                              odom.pose.pose.orientation.z,
+                                                              odom.pose.pose.orientation.w])
+        self.current_pose = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, yaw])
 
     def projected_map_callback(self, data):
         '''
@@ -98,9 +107,20 @@ class Frontier_explorer:
 	    # Select Points: Candidate Point Selection
         candidate_pts_ordered = self.select_point(candidate_pts, occupancy_map)
     
+        print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
+
         # Publishing
-        general_pts = self.__all_map_to_position__(candidate_pts_ordered)
-        self.publish_frontier_points(general_pts)
+        candidate_pts_catesian = self.__all_map_to_position__(candidate_pts_ordered)
+        # self.publish_frontier_points(candidate_pts_catesian)
+
+        # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
+        self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
+
+
+        resp = self.server_check_reached(TriggerRequest())
+        print(resp.success)
+        if resp.success:
+            self.server_set_goal(candidate_pts_catesian[0,0],candidate_pts_catesian[0,1])
 
         # candidate_pts_ordered_send = Int32MultiArray()
         # candidate_pts_ordered_send.data = candidate_pts_ordered
@@ -186,7 +206,7 @@ class Frontier_explorer:
 
         for prop in regions:
             # avoid small frontiers (caused by map noise)
-            if prop.area > 5.0:
+            if prop.area > 9.0:
                 # get centroid of each frontier using regionprops property
                 x = int(prop.centroid[0])
                 y = int(prop.centroid[1])
@@ -226,7 +246,7 @@ class Frontier_explorer:
 
         # return pts 
 
-    def select_point(self, candidate_points, occupancy_map, nearest = False):
+    def select_point(self, candidate_points, occupancy_map, nearest = True):
         '''
         Selects a single point from the list of potential points using IG
         
@@ -248,6 +268,7 @@ class Frontier_explorer:
 
         # List of entropies of candidate points
         IG = []
+        distances = []
 
         # mask size of entropy summation
         mask_size = int(10/2)
@@ -257,9 +278,13 @@ class Frontier_explorer:
             
             # Compute entropy in the neighborhood of that cell
             # Stores neighboring cell entropies
-            if nearest == True:
-                pass
-            else:
+            if nearest:  # Use distance
+                # distacne between pose (real base) and candidate pt (grid base)
+                d = self.pose_to_grid_distance([r,c], self.current_pose[0:2])
+                distances.append(d)
+                # print('candidate_points list: ', candidate_points)
+                # print('distances list: ', distances)
+            else:       # use IG based on entropy
                 neighbor_prob = []
                 for i in range(r-mask_size,r+mask_size+1):
                     for j in range(c-mask_size,c+mask_size+1):
@@ -275,17 +300,26 @@ class Frontier_explorer:
                 # add to candidate point entropies list
                 IG.append(abs_entropy)
 
-        print(IG)
-        # Candidate points are now ordered according to their information gains, so according to their priority
-        idx = IG.index(max(IG))
+        # Minimize distance
+        if nearest:  
+            # Candidate points are ordered according to their closeness to the robot
+            candidate_points_ordered = []
+            while candidate_points!=[]:    
+                idx = distances.index(min(distances))
+                distances.pop(idx)
+                candidate_points_ordered.append(candidate_points.pop(idx))
 
-        candidate_points_ordered = []
-        while candidate_points!=[]:    
+        # Maximize distance
+        else:  
+            # Candidate points are now ordered according to their information gains, so according to their priority
             idx = IG.index(max(IG))
-            IG.pop(idx)
-            candidate_points_ordered.append(candidate_points.pop(idx))
+            candidate_points_ordered = []
+            while candidate_points!=[]:    
+                idx = IG.index(max(IG))
+                IG.pop(idx)
+                candidate_points_ordered.append(candidate_points.pop(idx))
 
-        return candidate_points_ordered
+        return np.array(candidate_points_ordered)
 
     def flatten_array(self,lst):
         flat_lst = []
@@ -321,17 +355,6 @@ class Frontier_explorer:
                 id += 1
             self.frontier_points_pub.publish(self.marker_Arr)
     
-    '''
-    Robot odometry/pose callback
-    '''
-    def get_odom(self, odom):
-        _, _, yaw = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x, 
-                                                              odom.pose.pose.orientation.y,
-                                                              odom.pose.pose.orientation.z,
-                                                              odom.pose.pose.orientation.w])
-        self.drone_x = odom.pose.pose.position.x
-        self.drone_y = odom.pose.pose.position.y
-        self.drone_yaw = yaw
 
     '''
     Convert map position to world coordinates. 
@@ -341,6 +364,9 @@ class Frontier_explorer:
         my = p[0]*self.map_resolution+self.map_origin[1] 
         return [mx,my]
 
+    def pose_to_grid_distance(self,grid, pose):
+        return np.sqrt(np.sum((np.array(pose) - np.array(self.__map_to_position__(grid)))**2))
+
     '''
     Converts a list of points in map coordinates to world coordinates
     '''
@@ -348,7 +374,7 @@ class Frontier_explorer:
         lst = []
         for p in pts:
             lst.append(self.__map_to_position__(p))
-        return lst
+        return np.array(lst)
 
 if __name__ == '__main__':
     rospy.init_node('frontier_explorer', anonymous=True)
