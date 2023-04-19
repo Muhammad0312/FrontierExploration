@@ -117,6 +117,7 @@ class Frontier_explorer:
         self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
 
 
+        # If the robot is currently not moving, give it the highest priority candidate point (closes)
         resp = self.server_check_reached(TriggerRequest())
         print(resp.success)
         if resp.success:
