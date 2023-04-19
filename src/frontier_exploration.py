@@ -35,6 +35,10 @@ import skimage
 import math
 from skimage import measure, draw
 
+def euclidean_distance(x, y):
+    return np.sqrt(np.sum((x - y)**2))
+
+
 class Frontier_explorer:       
     def __init__(self):
         self.entropy = 0 
@@ -222,13 +226,14 @@ class Frontier_explorer:
 
         # return pts 
 
-    def select_point(self, candidate_points, occupancy_map):
+    def select_point(self, candidate_points, occupancy_map, nearest = False):
         '''
         Selects a single point from the list of potential points using IG
         
         Inputs:
         candidate_points -> Candidate Points: list -> [(x, y), ...]
         occupancy_map -> Occupancy Grid
+        nearest -> True: use nearest priority, False: use entropy
         
         Output: 
         candidate_points_ordered: Candidate Points orders according to IG 
@@ -242,7 +247,7 @@ class Frontier_explorer:
         occupancy_map[np.where(occupancy_map==100.0)] = 1.0 # Occupied space
 
         # List of entropies of candidate points
-        entropies = []
+        IG = []
 
         # mask size of entropy summation
         mask_size = int(10/2)
@@ -252,28 +257,32 @@ class Frontier_explorer:
             
             # Compute entropy in the neighborhood of that cell
             # Stores neighboring cell entropies
-            neighbor_prob = []
-            for i in range(r-mask_size,r+mask_size+1):
-                for j in range(c-mask_size,c+mask_size+1):
-                    neighbor_prob.append(occupancy_map[i,j])
+            if nearest == True:
+                pass
+            else:
+                neighbor_prob = []
+                for i in range(r-mask_size,r+mask_size+1):
+                    for j in range(c-mask_size,c+mask_size+1):
+                        neighbor_prob.append(occupancy_map[i,j])
 
-            neighbor_prob = np.array(neighbor_prob)
+                neighbor_prob = np.array(neighbor_prob)
 
-            # Transform these probabilities to entropies: See associated thesis chapter ()
-            entropy = -(neighbor_prob*np.log(neighbor_prob) + (1.0-neighbor_prob)*np.log(1-neighbor_prob))
-            entropy = np.nan_to_num(entropy)
-            # Sum the entropies in neighborhood
-            abs_entropy = np.sum(entropy)
-            # add to candidate point entropies list
-            entropies.append(abs_entropy)
+                # Transform these probabilities to entropies: See associated thesis chapter ()
+                entropy = -(neighbor_prob*np.log(neighbor_prob) + (1.0-neighbor_prob)*np.log(1-neighbor_prob))
+                entropy = np.nan_to_num(entropy)
+                # Sum the entropies in neighborhood
+                abs_entropy = np.sum(entropy)
+                # add to candidate point entropies list
+                IG.append(abs_entropy)
 
+        print(IG)
         # Candidate points are now ordered according to their information gains, so according to their priority
-        idx = entropies.index(max(entropies))
+        idx = IG.index(max(IG))
 
         candidate_points_ordered = []
         while candidate_points!=[]:    
-            idx = entropies.index(max(entropies))
-            entropies.pop(idx)
+            idx = IG.index(max(IG))
+            IG.pop(idx)
             candidate_points_ordered.append(candidate_points.pop(idx))
 
         return candidate_points_ordered

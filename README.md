@@ -1,6 +1,4 @@
-﻿
-
-# Frontier Exploration - Hands-on Planning
+﻿# Frontier Exploration - Hands-on Planning
 
 ## Rudimentary Results - v1 
 
