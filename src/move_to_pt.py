@@ -48,7 +48,7 @@ class OnlinePlanner:
         self.w_max = 0.3      
 
         # Status
-        self.is_moving = False          
+        self.is_moving = False         
 
         # PUBLISHERS
         # Publisher for sending velocity commands to the robot
@@ -67,38 +67,21 @@ class OnlinePlanner:
 
         # TODO: subscriber to /move_base_simple/goal published by rviz, cb: get_goal
         # self.move_goal_sub = rospy.Subscriber('/move_base_simple/goal', PoseStamped, self.get_goal)    
-        self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
+        # self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
 
         # # Define a service
-        self.server_check_reached = rospy.Service('/check_reached', Trigger, self.check_reached)
+        # self.server_check_reached = rospy.Service('/check_reached', Trigger, self.check_reached)
 
-
+        # self.server_set_goal = rospy.ServiceProxy(
+                # '/set_goal', posePoint)
         # TIMERS  -----------------------------------------------------------------------
         # Timer for velocity controller
+
+        rospy.wait_for_service('/set_goal')
+        self.server_set_goal = rospy.ServiceProxy('/set_goal', posePoint)
+
         rospy.Timer(rospy.Duration(0.1), self.controller)
-    
-    # Service to check if reached
-    def check_reached(self, req):
-        # Check if the robot is moving
-        if self.is_moving:
-            return TriggerResponse(success=False, message='Robot is moving')
-        else:
-            return TriggerResponse(success=True, message='Robot has reached')
         
-    # Goal callback: Get new goal from /move_base_simple/goal topic published by rviz 
-    # and computes a plan to it using self.plan() method
-    def get_goal(self, goal):
-        if self.svc.there_is_map:
-            print("New goal received: ", goal.x, goal.y)
-            self.goal = np.array([goal.x, goal.y])
-            print(self.goal)
-             # to send zero velocity while planning
-            self.path = None                                                   
-            self.path = self.plan()
-            self.is_moving = True
-            ret = True
-            return ret
-            
 
     # Odometry callback: Gets current robot pose and stores it into self.current_pose
     def get_odom(self, odom):
@@ -124,6 +107,15 @@ class OnlinePlanner:
             origin = [gridmap.info.origin.position.x, gridmap.info.origin.position.y]
             self.svc.set(env, gridmap.info.resolution, origin)
 
+            
+            # If robot isnt moving, call frontier to get a new goal
+            if self.is_moving == False:
+                 # Call service to get the initial goal
+                goal = self.server_set_goal(True)
+                self.goal = np.array([goal.x, goal.y])
+                self.is_moving = True
+                self.path = self.plan() 
+
             # If the robot is following a path, check if it is still valid
             if self.path is not None and len(self.path) > 0:
                 # create total_path adding the current position to the rest of waypoints in the path
@@ -133,7 +125,6 @@ class OnlinePlanner:
                     self.path = self.plan() 
 
 
-                # TODO: check total_path validity. If total_path is not valid make self.path = None and replan
 
     # Solve plan from current position to self.goal. 
     def plan(self):

@@ -20,7 +20,7 @@ import tf
 import cv2
 import os
 from std_srvs.srv import Trigger, TriggerRequest
-from pick_up_objects_task.srv import posePoint
+from frontier_explorationb.srv import posePoint
 from utils_lib.frontier_classes import FrontierDetector
 
 from std_msgs.msg import ColorRGBA
@@ -34,6 +34,8 @@ class FrontierExplorer:
         self.current_pose = None
         
         self.motion_busy = None
+
+        self.map_msg = None
 
         self.frontierDetector = FrontierDetector()
             
@@ -49,18 +51,18 @@ class FrontierExplorer:
         self.marker_Arr = MarkerArray()
         self.marker_Arr.markers = []
 
-        
+        self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
 
-        # service used to set goal of move behaviour
-        rospy.wait_for_service('/set_goal')
-        # service used to check status of move behaviour
-        rospy.wait_for_service('/check_reached')
+        # # service used to set goal of move behaviour
+        # rospy.wait_for_service('/set_goal')
+        # # service used to check status of move behaviour
+        # rospy.wait_for_service('/check_reached')
 
 
-        self.server_set_goal = rospy.ServiceProxy(
-                '/set_goal', posePoint)
-        self.server_check_reached = rospy.ServiceProxy(
-                '/check_reached', Trigger)
+        # self.server_set_goal = rospy.ServiceProxy(
+        #         '/set_goal', posePoint)
+        # self.server_check_reached = rospy.ServiceProxy(
+        #         '/check_reached', Trigger)
         
 
     # Odometry callback: Gets current robot pose and stores it into self.current_pose
@@ -76,26 +78,26 @@ class FrontierExplorer:
         Called when a new occupancy grid is received. 
         Does ALL THE WORK FFS
         ''' 
-
+        self.map_msg = data
         # If the robot is currently not moving, give it the highest priority candidate point (closes)
-        resp = self.server_check_reached(TriggerRequest())
-        print(resp.success)
-        if resp.success:     
-            self.frontierDetector.set_mapNpose(data, self.current_pose)
-
-            candidate_pts_ordered = self.frontierDetector.getCandidatePoint(criterion='entropy')
-
-            candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
         
-            print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
+    def get_goal(self,data):    
 
-            # Publishing
-            # self.publish_frontier_points(candidate_pts_catesian)
+        self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
 
-            # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
-            self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
+        candidate_pts_ordered = self.frontierDetector.getCandidatePoint(criterion='entropy')
 
-            self.server_set_goal(candidate_pts_catesian[0,0],candidate_pts_catesian[0,1])
+        candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
+    
+        print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
+
+        # Publishing
+        # self.publish_frontier_points(candidate_pts_catesian)
+
+        # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
+        self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
+
+        return([candidate_pts_catesian[0,0],candidate_pts_catesian[0,1]])
 
 
     def flatten_array(self,lst):
