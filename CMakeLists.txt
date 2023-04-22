@@ -8,8 +8,24 @@ project(frontier_explorationb)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  gazebo_msgs
+  nav_msgs
   roscpp
   rospy
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  roscpp
+  message_generation
+)
+
+add_service_files(
+  FILES
+  posePoint.srv
+)
+
+generate_messages(
+  DEPENDENCIES
   std_msgs
 )
 
@@ -107,6 +123,7 @@ catkin_package(
 #  LIBRARIES frontier_explorationb
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
+CATKIN_DEPENDS message_runtime
 )
 
 ###########
@@ -124,6 +141,12 @@ include_directories(
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/frontier_explorationb.cpp
 # )
+# itional locations of header files
+## Your package locations should be listed before other locations
+include_directories(
+# include
+  ${catkin_INCLUDE_DIRS}
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -180,7 +203,13 @@ include_directories(
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+#   DESTINATIONitional locations of header files
+## Your package locations should be listed before other locations
+# include_directories(
+#   # include
+#     ${catkin_INCLUDE_DIRS}
+#   )
+#    ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 #   FILES_MATCHING PATTERN "*.h"
 #   PATTERN ".svn" EXCLUDE
 # )
