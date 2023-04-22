@@ -77,25 +77,24 @@ class FrontierExplorer:
         Does ALL THE WORK FFS
         ''' 
 
-        self.frontierDetector.set_mapNpose(data, self.current_pose)
-
-        candidate_pts_ordered = self.frontierDetector.getCandidatePoint(criterion='entropy')
-
-        candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
-    
-        print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
-
-        # Publishing
-        # self.publish_frontier_points(candidate_pts_catesian)
-
-        # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
-        self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
-
-
         # If the robot is currently not moving, give it the highest priority candidate point (closes)
         resp = self.server_check_reached(TriggerRequest())
         print(resp.success)
-        if resp.success:
+        if resp.success:     
+            self.frontierDetector.set_mapNpose(data, self.current_pose)
+
+            candidate_pts_ordered = self.frontierDetector.getCandidatePoint(criterion='entropy')
+
+            candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
+        
+            print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
+
+            # Publishing
+            # self.publish_frontier_points(candidate_pts_catesian)
+
+            # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
+            self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
+
             self.server_set_goal(candidate_pts_catesian[0,0],candidate_pts_catesian[0,1])
 
 
