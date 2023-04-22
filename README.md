@@ -6,6 +6,7 @@
 2. export TURTLEBOT3_MODEL=burger
 3. in same terminal: roslaunch frontier_explorationb octomap.launch
 4. new terminal: rosrun frontier_explorationb frontier_exploration.py
+5. new terminal: rosrun pick_up_objects_task move_to_pt.py
 
 ## Rudimentary Results - v1 
 
