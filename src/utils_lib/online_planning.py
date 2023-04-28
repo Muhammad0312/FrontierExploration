@@ -169,7 +169,7 @@ class StateValidityChecker:
 def compute_path(start_p, goal_p, state_validity_checker, dominion, max_time=2.0):    
     # TODO: Plan a path from start_p to goal_p inside dominion using the OMPL and the state_validity_checker object. Follow notebook example.
     # some code
-     #ret = []
+    # ret = []
     # TODO: if solved fill ret with the points [x, y] in the solution path
     # TODO: Ensure that the path brings the robot to the goal (with a small tolerance)!
 

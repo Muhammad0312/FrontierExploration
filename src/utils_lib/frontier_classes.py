@@ -114,12 +114,17 @@ class FrontierDetector:
         # Segment/cluster/label the frontiers
         # Background has 0 value, and each frontier has a unique ID (1,2,3)
         labelled_frontiers = measure.label(frontiers, background=0)
+        
+        #__________________________  IMAGE SAVING  _________________________________
         img_norm = cv2.normalize(labelled_frontiers, None, 0, 255, cv2.NORM_MINMAX)
+
         # Convert the image to uint8 type
         label_img = img_norm.astype(np.uint8)
+        
         # Apply a color map to the image
         color_img = cv2.applyColorMap(label_img, cv2.COLORMAP_HOT)
         cv2.imwrite("clustered.png",color_img)
+        #______________________________________________________________________________
         
         # Call regionprops function to get characteristics of each frontier
         # Example: size, orientation, centroid

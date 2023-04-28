@@ -89,12 +89,13 @@ class FrontierExplorer:
 
         candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
     
-        print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
+        # print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
 
         # Publishing
         # self.publish_frontier_points(candidate_pts_catesian)
 
         # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
+        print(candidate_pts_catesian.shape)
         self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
 
         return([candidate_pts_catesian[0,0],candidate_pts_catesian[0,1]])
