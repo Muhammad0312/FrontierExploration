@@ -17,16 +17,23 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   roscpp
   message_generation
+  actionlib
+  genmsg 
+  actionlib_msgs
 )
 
 add_service_files(
   FILES
   posePoint.srv
 )
+add_action_files(DIRECTORY action FILES 
+  go_to_point.action
+)
 
 generate_messages(
   DEPENDENCIES
   std_msgs
+  actionlib_msgs
 )
 
 ## System dependencies are found with CMake's conventions
