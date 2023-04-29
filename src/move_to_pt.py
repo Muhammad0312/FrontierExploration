@@ -12,13 +12,20 @@ from std_msgs.msg import ColorRGBA
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseStamped, Pose, PointStamped
 from std_srvs.srv import Trigger, TriggerRequest, EmptyResponse
+import actionlib
+
+from math import sqrt
 
 from utils_lib.online_planning import StateValidityChecker, move_to_point, compute_path
 # import posePoint.srv
 from frontier_explorationb.srv import posePoint
 # from 
+from frontier_explorationb.msg import go_to_pointAction, go_to_pointGoal, go_to_pointFeedback, go_to_pointResult 
 
 class OnlinePlanner:
+
+    _feedback = go_to_pointFeedback()
+    _result = go_to_pointResult()
 
     # OnlinePlanner Constructor
     def __init__(self, gridmap_topic, odom_topic, cmd_vel_topic, dominion, distance_threshold):
@@ -48,7 +55,8 @@ class OnlinePlanner:
         self.w_max = 0.3      
 
         # Status
-        self.is_moving = False         
+        self.is_moving = False
+        self.reached = False         
 
         # PUBLISHERS
         # Publisher for sending velocity commands to the robot
@@ -65,23 +73,52 @@ class OnlinePlanner:
         # TODO: subscriber to odom_topic, cb: get_odom 
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.get_odom)
 
-        # TODO: subscriber to /move_base_simple/goal published by rviz, cb: get_goal
-        # self.move_goal_sub = rospy.Subscriber('/move_base_simple/goal', PoseStamped, self.get_goal)    
-        # self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
+        # rospy.wait_for_service('/set_goal')
+        # self.server_set_goal = rospy.ServiceProxy('/set_goal', posePoint)
 
-        # # Define a service
-        # self.server_check_reached = rospy.Service('/check_reached', Trigger, self.check_reached)
-
-        # self.server_set_goal = rospy.ServiceProxy(
-                # '/set_goal', posePoint)
-        # TIMERS  -----------------------------------------------------------------------
-        # Timer for velocity controller
-
-        rospy.wait_for_service('/set_goal')
-        self.server_set_goal = rospy.ServiceProxy('/set_goal', posePoint)
+        self._as = actionlib.SimpleActionServer('move_to_point', go_to_pointAction, execute_cb=self.execute_cb, auto_start = False)
+        self._as.start()
 
         rospy.Timer(rospy.Duration(0.1), self.controller)
         
+    def execute_cb(self, goal):
+        # helper variables
+        r = rospy.Rate(1)
+        success = False
+        print('goal received: ',goal.goal_x,goal.goal_y)
+        
+        self.goal = np.array([goal.goal_x, goal.goal_y])
+        self.is_moving = True
+        self.path = self.plan()
+
+        self._feedback.dist_to_goal = 0.0
+        # publish the feedback
+        if self.reached == True:
+            print('reached')
+            self._result.success = True
+            self._as.set_succeeded(self._result)
+        
+        while not self.reached:
+            print('in while')
+            self._feedback.dist_to_goal = self.distance_to_goal()
+            self._as.publish_feedback(self._feedback)
+            if self.reached:
+                # if the goal is reached, set the goal to succeeded
+                print('success')
+                self._result.success = True
+                self._as.set_succeeded(self._result)
+                self.reached = False
+                break
+            # check that preempt has not been requested by the client
+            if self._as.is_preempt_requested():
+                rospy.loginfo('%s: Preempted' % 'move_to_point')
+                self._as.set_preempted()
+                success = False
+                break
+
+        # print('success')
+        # self._result.success = True
+        # self._as.set_succeeded(self._result)
 
     # Odometry callback: Gets current robot pose and stores it into self.current_pose
     def get_odom(self, odom):
@@ -108,13 +145,13 @@ class OnlinePlanner:
             self.svc.set(env, gridmap.info.resolution, origin)
 
             
-            # If robot isnt moving, call frontier to get a new goal
-            if self.is_moving == False:
-                 # Call service to get the initial goal
-                goal = self.server_set_goal(True)
-                self.goal = np.array([goal.x, goal.y])
-                self.is_moving = True
-                self.path = self.plan() 
+            # # If robot isnt moving, call frontier to get a new goal
+            # if self.is_moving == False:
+            #     # Call service to get the initial goal
+            #     goal = self.server_set_goal(True)
+            #     self.goal = np.array([goal.x, goal.y])
+            #     self.is_moving = True
+            #     self.path = self.plan() 
 
             # If the robot is following a path, check if it is still valid
             if self.path is not None and len(self.path) > 0:
@@ -185,6 +222,9 @@ class OnlinePlanner:
                     self.goal = None
                     print("Final position reached!")
                     self.is_moving = False
+                    self.reached = True
+                    # self._result.success = True
+                    # self._as.set_succeeded(self._result)
             else:
                 # TODO: Compute velocities using controller function in utils_lib
                 v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
@@ -259,7 +299,12 @@ class OnlinePlanner:
                 m.colors.append(color_red)
             
             self.marker_pub.publish(m)
-            
+        
+    def distance_to_goal(self):        #distance between the current pose and the goal pose 
+        if self.goal is None:
+            return 0.0
+        return sqrt(( self.goal[0] - self.current_pose[0])**2 + ( self.goal[1] - self.current_pose[1])**2)
+        
 # MAIN FUNCTION
 if __name__ == '__main__':
     rospy.init_node('turtlebot_online_path_planning_node')   

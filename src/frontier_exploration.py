@@ -19,8 +19,13 @@ import roslib
 import tf
 import cv2
 import os
+import math
 from std_srvs.srv import Trigger, TriggerRequest
+import actionlib
+
 from frontier_explorationb.srv import posePoint
+from frontier_explorationb.msg import go_to_pointAction, go_to_pointGoal
+
 from utils_lib.frontier_classes import FrontierDetector
 
 from std_msgs.msg import ColorRGBA
@@ -29,13 +34,19 @@ from visualization_msgs.msg import MarkerArray
 
 class FrontierExplorer:       
     def __init__(self):
-    
+
         # Current robot pose [x, y, yaw], None if unknown            
         self.current_pose = None
         
         self.motion_busy = None
 
         self.map_msg = None
+
+        self.dist_to_goal = math.inf
+
+        self.odom_received = False
+        self.map_received =  False
+        self.started = True
 
         self.frontierDetector = FrontierDetector()
             
@@ -51,19 +62,15 @@ class FrontierExplorer:
         self.marker_Arr = MarkerArray()
         self.marker_Arr.markers = []
 
-        self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
+        # self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
 
-        # # service used to set goal of move behaviour
-        # rospy.wait_for_service('/set_goal')
-        # # service used to check status of move behaviour
-        # rospy.wait_for_service('/check_reached')
-
-
-        # self.server_set_goal = rospy.ServiceProxy(
-        #         '/set_goal', posePoint)
-        # self.server_check_reached = rospy.ServiceProxy(
-        #         '/check_reached', Trigger)
+        self.client = actionlib.SimpleActionClient('move_to_point', go_to_pointAction)
+        self.client.wait_for_server()
+        self.get_goal()
         
+
+    def feedback_cb(self, feedback):
+        self.dist_to_goal = feedback.dist_to_goal
 
     # Odometry callback: Gets current robot pose and stores it into self.current_pose
     def get_odom(self, odom):
@@ -72,6 +79,13 @@ class FrontierExplorer:
                                                               odom.pose.pose.orientation.z,
                                                               odom.pose.pose.orientation.w])
         self.current_pose = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, yaw])
+        self.odom_received =  True
+        # print('in odom')
+        # self.goal = go_to_pointGoal(goal_x = self.current_pose[0], goal_y = self.current_pose[1])
+        # self.client.send_goal(self.goal, feedback_cb = self.feedback_cb)
+        # self.client.wait_for_result()
+        # # print("Get feedback: ",self.client.get_feedback())
+        # print("Get result: ",self.client.get_result())
 
     def projected_map_callback(self, data):
         '''
@@ -79,26 +93,44 @@ class FrontierExplorer:
         Does ALL THE WORK FFS
         ''' 
         self.map_msg = data
+        self.map_received = True
         # If the robot is currently not moving, give it the highest priority candidate point (closes)
+        # if self.odom_received:
+        #     self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
+            
+
+    def get_goal(self):    
+
+        while self.started or self.client.get_result(): 
+            self.started = False
+            print('self.dist_to_goal',self.dist_to_goal)
+            if self.odom_received and self.map_received:
+                # self.client.set_result()
+                self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
+
+                candidate_pts_ordered = self.frontierDetector.getCandidatePoint(criterion='entropy')
+
+                candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
+            
+                # print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
+
+                # Publishing
+                # self.publish_frontier_points(candidate_pts_catesian)
+
+                # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
+                print(candidate_pts_catesian.shape)
+                self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
+            
+                self.goal = go_to_pointGoal(goal_x = candidate_pts_catesian[0,0], goal_y = candidate_pts_catesian[0,1])
+                self.client.send_goal(self.goal, feedback_cb = self.feedback_cb)
+                self.client.wait_for_result()
+                # print("Get feedback: ",self.client.get_feedback())
+                print("Get result: ",self.client.get_result())
+
+
         
-    def get_goal(self,data):    
 
-        self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
-
-        candidate_pts_ordered = self.frontierDetector.getCandidatePoint(criterion='entropy')
-
-        candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
-    
-        # print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
-
-        # Publishing
-        # self.publish_frontier_points(candidate_pts_catesian)
-
-        # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
-        print(candidate_pts_catesian.shape)
-        self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
-
-        return([candidate_pts_catesian[0,0],candidate_pts_catesian[0,1]])
+        # return([candidate_pts_catesian[0,0],candidate_pts_catesian[0,1]])
 
 
     def flatten_array(self,lst):
