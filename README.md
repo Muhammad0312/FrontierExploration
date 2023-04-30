@@ -2,6 +2,8 @@
 
 ## HOW TO RUN:
 
+Nada sucks!
+
 1. Clone in your WS
 2. export TURTLEBOT3_MODEL=burger
 3. in same terminal: roslaunch frontier_explorationb octomap.launch
