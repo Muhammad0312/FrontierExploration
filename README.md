@@ -2,7 +2,6 @@
 
 ## HOW TO RUN:
 
-Nada sucks!
 
 1. Clone in your WS
 2. export TURTLEBOT3_MODEL=burger
