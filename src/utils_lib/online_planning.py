@@ -160,72 +160,41 @@ class StateValidityChecker:
                 # print("This is the point!",w)
                 # print("------------------------")
                 return False
-        return True        
-    
+        return True
 
-# Planner: This function has to plan a path from start_p to goal_p. To check if a position is valid the 
-# StateValidityChecker class has to be used. The planning dominion must be specified as well as the maximum planning time.
-# The planner returns a path that is a list of poses ([x, y]).
-def compute_path(start_p, goal_p, state_validity_checker, dominion, max_time=2.0):    
-    # TODO: Plan a path from start_p to goal_p inside dominion using the OMPL and the state_validity_checker object. Follow notebook example.
-    # some code
-    # ret = []
-    # TODO: if solved fill ret with the points [x, y] in the solution path
-    # TODO: Ensure that the path brings the robot to the goal (with a small tolerance)!
+    # Given a path, returs true if the path is not in collision and false othewise.
+    def CheckObstacleCollision(self,x1,x2,step_size=0.2):
+        path = (x1,x2)
+        waypoints = []  # upsampled points
+        # TODO: Discretize the positions between 2 waypoints with step_size
+        for i in range(len(path)-1):
+            p1, p2 = path[i], path[i+1]
+            # print("now checking these two points",p1,'and',p2)
+            dist = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2)
+            # print ("the distance in between is","  ",dist)
+            num_steps = dist / step_size
+            num_steps= int(num_steps)
+            # print ("the number of steps in between","  ",num_steps)
+            for j in range(num_steps):
+                interpolation = float(j) / num_steps  #the interpolation value for each step to find the pt we are checking right now
+                #print ('interpolation', interpolation)
+                #p = p1 * (1 - interpolation) + p2 * interpolation
+                x = p1[0] * (1-interpolation) + p2[0] * interpolation
+                y = p1[1] * (1-interpolation) + p2[1] * interpolation
+                # print ('the point we are checking', (x, y))
+                #print ('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+                waypoints.append((x,y))
+                
+        # TODO: for each point check if `is_valid``. If only one element is not valid return False, otherwise True. 
+        for w in waypoints:
+            # print(w)
+            if self.is_valid(w) == False:
+                return True
+        return False        
 
-    space = ob.RealVectorStateSpace(2)
-    bound_low=    dominion[0]
-    bound_high= dominion[1]
-    space.setBounds(bound_low, bound_high)
-    space.setLongestValidSegmentFraction(0.001)
-    si = ob.SpaceInformation(space) 
-    si.setStateValidityChecker(ob.StateValidityCheckerFn(state_validity_checker))
-        # create a start state
-    start = ob.State(space)
-    start[0] = start_p[0]
-    start[1] = start_p[1]
-    
-    # create a goal state
-    goal = ob.State(space)
-    goal[0] = goal_p[0]
-    goal[1] = goal_p[1]
-
-    pdef = ob.ProblemDefinition(si)
-    pdef.setStartAndGoalStates(start, goal)
-    pdef.setOptimizationObjective(ob.PathLengthOptimizationObjective(si))
-    optimizingPlanner = og.RRTstar(si)
-    optimizingPlanner.setRange(10)  
-    optimizingPlanner.setGoalBias(0.2)
-
-    # Set the problem instance for our planner to solve and call setup
-    optimizingPlanner.setProblemDefinition(pdef)
-    optimizingPlanner.setup()
-
-    # attempt to solve the planning problem in the given runtime
-    solved = optimizingPlanner.solve(max_time)
-    
-    # Get planner data
-    pd = ob.PlannerData(si)
-    optimizingPlanner.getPlannerData(pd)
-    
-    if solved:
-        # get the path and transform it to a list
-        path = pdef.getSolutionPath()
-        print("Found solution:\n%s" % path)
-        ret = []
-        for i in path.getStates():
-            ret.append((i[0], i[1]))
-    else:
-        ret = []
-        print("No solution found")
-    # print ("path", path)
-    return ret
-        
-
-
+#----------------------- Controller
 # Controller: Given the current position and the goal position, this function computes the desired 
 # lineal velocity and angular velocity to be applied in order to reah the goal.
-
 def distance_to_goal( goal,current):        #distance between the current pose and the goal pose 
     return math.sqrt(( goal[0] - current[0])**2 + ( goal[1] - current[1])**2)
 

@@ -16,7 +16,8 @@ import actionlib
 
 from math import sqrt
 
-from utils_lib.online_planning import StateValidityChecker, move_to_point, compute_path
+from utils_lib.online_planning import *
+from utils_lib.path_planners import *
 # import posePoint.srv
 from frontier_explorationb.srv import posePoint
 # from 
@@ -30,7 +31,12 @@ class OnlinePlanner:
     # OnlinePlanner Constructor
     def __init__(self, gridmap_topic, odom_topic, cmd_vel_topic, dominion, distance_threshold):
 
-        # ATTRIBUTES
+        # decide which planner you want
+        # Options: RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, 
+        # InRRTStar-BSpline, FMT-BSpline, BIT-BSpline
+        self.planner_config = 'BIT-Dubins'
+
+        # ATTRIBUTE
         # List of points which define the plan. None if there is no plan
         self.path = []
         # State Validity Checker object                                                 
@@ -99,7 +105,7 @@ class OnlinePlanner:
             self._as.set_succeeded(self._result)
         
         while not self.reached:
-            print('in while')
+            # print('in while')
             self._feedback.dist_to_goal = self.distance_to_goal()
             self._as.publish_feedback(self._feedback)
             if self.reached:
@@ -169,11 +175,11 @@ class OnlinePlanner:
         path = []
         trial = 0
         # If planning fials, allow replanning for several trials
-        while len(path) == 0 and trial < 5:
+        while len(path) <= 1 and trial < 5:
             print("Compute new path")
 
             # TODO: plan a path from self.current_pose to self.goal
-            path = compute_path (self.current_pose, self.goal,self.svc.is_valid, self.dominion, max_time=3.0) 
+            path = compute_path(self.planner_config, self.current_pose, self.goal,self.svc, self.dominion, max_time=3.0) 
             trial += 1
 
         if trial == 5:
@@ -186,7 +192,7 @@ class OnlinePlanner:
                 start_pt[0] += 0.1
                 start_pt[1] += 0.1
                 try:
-                    path = compute_path (start_pt, self.goal,self.svc.is_valid, self.dominion, max_time=3.0)
+                    path = compute_path(self.planner_config, start_pt, self.goal,self.svc, self.dominion, max_time=3.0)
                 except:
                     pass
             print("Path found")

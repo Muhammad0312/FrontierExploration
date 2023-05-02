@@ -90,7 +90,6 @@ class FrontierExplorer:
     def projected_map_callback(self, data):
         '''
         Called when a new occupancy grid is received. 
-        Does ALL THE WORK FFS
         ''' 
         self.map_msg = data
         self.map_received = True
