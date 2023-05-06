@@ -48,6 +48,9 @@ class FrontierExplorer:
         self.map_received =  False
         self.started = True
 
+        self.map_origin = None
+        self.map_resolution = None
+
         self.frontierDetector = FrontierDetector()
             
         # Subscribe to map: Every time new map appears, recompute frontiers 
@@ -58,9 +61,13 @@ class FrontierExplorer:
 
         # Publish: Frontier Points for Visualization
         self.frontier_points_pub = rospy.Publisher("/frontier_detection/vis_points",MarkerArray,queue_size=1) #occupancy grid publisher
+        self.frontier_lines_pub = rospy.Publisher("/frontier_detection/vis_lines",MarkerArray,queue_size=1) #occupancy grid publisher
 
-        self.marker_Arr = MarkerArray()
-        self.marker_Arr.markers = []
+        self.marker_candidate_points = MarkerArray()
+        self.marker_candidate_points.markers = []
+
+        self.marker_frontier_lines = MarkerArray()
+        self.marker_frontier_lines.markers = []
 
         # self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
 
@@ -93,6 +100,8 @@ class FrontierExplorer:
         ''' 
         self.map_msg = data
         self.map_received = True
+        self.map_origin = [data.info.origin.position.x, data.info.origin.position.y] 
+        self.map_resolution = data.info.resolution
         # If the robot is currently not moving, give it the highest priority candidate point (closes)
         # if self.odom_received:
         #     self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
@@ -107,7 +116,7 @@ class FrontierExplorer:
                 # self.client.set_result()
                 self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
 
-                candidate_pts_ordered = self.frontierDetector.getCandidatePoint(criterion='entropy')
+                candidate_pts_ordered, labelled_frontiers = self.frontierDetector.getCandidatePoint(criterion='entropy')
 
                 candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
             
@@ -119,15 +128,13 @@ class FrontierExplorer:
                 # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
                 print(candidate_pts_catesian.shape)
                 self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
-            
+                self.publish_frontier_lines(labelled_frontiers,)
+
                 self.goal = go_to_pointGoal(goal_x = candidate_pts_catesian[0,0], goal_y = candidate_pts_catesian[0,1])
                 self.client.send_goal(self.goal, feedback_cb = self.feedback_cb)
                 self.client.wait_for_result()
                 # print("Get feedback: ",self.client.get_feedback())
                 print("Get result: ",self.client.get_result())
-
-
-        
 
         # return([candidate_pts_catesian[0,0],candidate_pts_catesian[0,1]])
 
@@ -141,7 +148,7 @@ class FrontierExplorer:
     
     # Publish a path as a series of line markers
     def publish_frontier_points(self,data):   
-        self.marker_Arr.markers = []
+        self.marker_candidate_points.markers = []
         for i in range(0,len(data)):
             self.myMarker = Marker()
             self.myMarker.header.frame_id = "odom"
@@ -159,12 +166,67 @@ class FrontierExplorer:
             self.myMarker.scale.z = 0.2
             self.myMarker.lifetime = rospy.Duration(0)
             
-            self.marker_Arr.markers.append(self.myMarker)
+            self.marker_candidate_points.markers.append(self.myMarker)
             id = 0
-            for m in self.marker_Arr.markers:
+            for m in self.marker_candidate_points.markers:
                 m.id = id
                 id += 1
-            self.frontier_points_pub.publish(self.marker_Arr)
+            self.frontier_points_pub.publish(self.marker_candidate_points)
+
+    def publish_frontier_lines(self,labelled_map):   
+        print(np.unique(labelled_map))
+
+        # colors = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.33), (0.0, 0.0, 0.67), (0.0, 0.0, 1.0), (0.0, 0.33, 0.0), (0.0, 0.33, 0.33), (0.0, 0.33, 0.67), (0.0, 0.33, 1.0), (0.0, 0.67, 0.0), (0.0, 0.67, 0.33), (0.0, 0.67, 0.67), (0.0, 0.67, 1.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.33), (0.0, 1.0, 0.67), (0.0, 1.0, 1.0), (0.33, 0.0, 0.0), (0.33, 0.0, 0.33), (0.33, 0.0, 0.67), (0.33, 0.0, 1.0), (0.33, 0.33, 0.0), (0.33, 0.33, 0.33), (0.33, 0.33, 0.67), (0.33, 0.33, 1.0), (0.33, 0.67, 0.0), (0.33, 0.67, 0.33), (0.33, 0.67, 0.67), (0.33, 0.67, 1.0), (0.33, 1.0, 0.0), (0.33, 1.0, 0.33), (0.33, 1.0, 0.67), (0.33, 1.0, 1.0), (0.67, 0.0, 0.0), (0.67, 0.0, 0.33), (0.67, 0.0, 0.67), (0.67, 0.0, 1.0), (0.67, 0.33, 0.0), (0.67, 0.33, 0.33), (0.67, 0.33, 0.67), (0.67, 0.33, 1.0), (0.67, 0.67, 0.0), (0.67, 0.67, 0.33), (0.67, 0.67, 0.67), (0.67, 0.67, 1.0), (0.67, 1.0, 0.0), (0.67, 1.0, 0.33), (0.67, 1.0, 0.67), (0.67, 1.0, 1.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.33), (1.0, 0.0, 0.67), (1.0, 0.0, 1.0), (1.0, 0.33, 0.0), (1.0, 0.33, 0.33), (1.0, 0.33, 0.67), (1.0, 0.33, 1.0), (1.0, 0.67, 0.0), (1.0, 0.67, 0.33), (1.0, 0.67, 0.67), (1.0, 0.67, 1.0), (1.0, 1.0, 0.0), (1.0, 1.0, 0.33), (1.0, 1.0, 0.67), (1.0, 1.0, 1.0)]
+
+        self.marker_frontier_lines = MarkerArray()
+        self.marker_frontier_lines.markers = []
+
+        lines_list = []
+
+        for i in range(labelled_map.shape[0]):
+            for j in range(labelled_map.shape[1]):
+                val = labelled_map[i,j]
+                if val!=0:
+                    lines_list.append([i,j])
+
+        # print(lines_dict)
+
+        for i in range(0,len(lines_list)):
+            self.myMarker = Marker()
+            self.myMarker.header.frame_id = "odom"
+            self.myMarker.type = self.myMarker.SPHERE # sphere
+            self.myMarker.action = self.myMarker.ADD
+            self.myMarker.id = i
+
+            self.myMarker.pose.orientation.x = 0.0
+            self.myMarker.pose.orientation.y = 0.0
+            self.myMarker.pose.orientation.z = 0.0
+            self.myMarker.pose.orientation.w = 1.0
+
+            p = self.__map_to_position__([lines_list[i][0],lines_list[i][1]])
+
+            self.myPoint = Point()
+            self.myPoint.x = p[0]
+            self.myPoint.y = p[1]
+            self.myMarker.pose.position = self.myPoint
+            
+            self.myMarker.color=ColorRGBA(0, 0, 1, 0.5)
+            self.myMarker.scale.x = 0.1
+            self.myMarker.scale.y = 0.1
+            self.myMarker.scale.z = 0.05
+            # self.myMarker.lifetime = rospy.Duration(0)
+
+            self.marker_frontier_lines.markers.append(self.myMarker)
+        # Create DELETE markers for previously published markers
+        # delete_markers = MarkerArray()
+        # delete_marker = Marker()
+        # delete_marker.action = Marker.DELETEALL
+        # delete_markers.markers.append(delete_marker)
+        # self.frontier_lines_pub.publish(delete_markers)
+        
+        self.frontier_lines_pub.publish(self.marker_frontier_lines)
+
+      
     
 
     '''

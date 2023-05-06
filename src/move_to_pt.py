@@ -34,7 +34,7 @@ class OnlinePlanner:
         # decide which planner you want
         # Options: RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, 
         # InRRTStar-BSpline, FMT-BSpline, BIT-BSpline
-        self.planner_config = 'BIT-Dubins'
+        self.planner_config = 'RRTStarOMPL'
 
         # ATTRIBUTE
         # List of points which define the plan. None if there is no plan

@@ -28,10 +28,13 @@ class SaveMap:
         self.occupancy_map = np.where(self.occupancy_map != 100, self.occupancy_map, 1)
         
         dil_size =  0.25/2 # Size of dilation needed
+
+        np.savetxt("nada2.txt",self.occupancy_map)
         occupancy_map = self.dilate_map(dil_size)
         
         print(np.unique(occupancy_map))
-        np.savetxt("np_map"+str(self.i)+"_dilated.txt",occupancy_map)
+        # np.savetxt("np_map"+str(self.i)+"_dilated.txt",occupancy_map)
+        np.savetxt("nada2_dilated.txt",occupancy_map)
 
     def dilate_map(self,dil_size):
 

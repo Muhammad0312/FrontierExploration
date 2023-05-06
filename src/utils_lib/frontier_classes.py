@@ -49,12 +49,12 @@ class FrontierDetector:
         frontiers = self.identify_frontiers()        
 
 	    # label the diff frontiers: Segmentation
-        candidate_pts = self.label_frontiers(frontiers)         
+        candidate_pts, labelled_frontiers = self.label_frontiers(frontiers)         
     
 	    # Select Points: Candidate Point Selection
         candidate_pts_ordered = self.select_point(candidate_pts)
 
-        return candidate_pts_ordered
+        return candidate_pts_ordered, labelled_frontiers
 
     def identify_frontiers(self):
         '''
@@ -157,7 +157,7 @@ class FrontierDetector:
                 potential_point = [int(prop.centroid[0]),int(prop.centroid[1])] 
                 candidate_pts.append([potential_point[0],potential_point[1]])
 
-        return candidate_pts
+        return candidate_pts, labelled_frontiers
 
     def select_point(self, candidate_points, nearest = True):
         '''
