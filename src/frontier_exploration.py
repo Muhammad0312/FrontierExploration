@@ -116,7 +116,7 @@ class FrontierExplorer:
                 # self.client.set_result()
                 self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
 
-                candidate_pts_ordered, labelled_frontiers = self.frontierDetector.getCandidatePoint(criterion='entropy')
+                candidate_pts_ordered, labelled_frontiers = self.frontierDetector.getCandidatePoint(criterion='distance')
 
                 candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
             
@@ -174,7 +174,7 @@ class FrontierExplorer:
             self.frontier_points_pub.publish(self.marker_candidate_points)
 
     def publish_frontier_lines(self,labelled_map):   
-        print(np.unique(labelled_map))
+        # print(np.unique(labelled_map))
 
         num_fronts =  np.max(np.unique(labelled_map))
 
@@ -202,8 +202,8 @@ class FrontierExplorer:
 
         unique_numbers, counts = np.unique(label_list, return_counts=True)
 
-        print(unique_numbers)
-        print(counts)
+        # print(unique_numbers)
+        # print(counts)
         # print(lines_dict)
 
         for i in range(0,len(lines_list)):
@@ -225,7 +225,7 @@ class FrontierExplorer:
             self.myPoint.y = p[1]
             self.myMarker.pose.position = self.myPoint
             
-            self.myMarker.color=ColorRGBA(val_list[i][0], val_list[i][1], val_list[i][2], 0.5)
+            self.myMarker.color=ColorRGBA(0, 0, 1, 0.5)
                         # self.myMarker.color=ColorRGBA(colors[i*col_jump,0], colors[val*col_jump,1], colors[val*col_jump,2], 0.5)
 
             self.myMarker.scale.x = 0.1
@@ -234,7 +234,7 @@ class FrontierExplorer:
             # self.myMarker.lifetime = rospy.Duration(0)
             
             label = label_list[i]
-            print(label)
+            # print(label)
             num_labels = counts[label-1]
             if num_labels>5:
                 self.marker_frontier_lines.markers.append(self.myMarker)

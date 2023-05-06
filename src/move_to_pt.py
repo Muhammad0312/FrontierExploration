@@ -315,7 +315,7 @@ class OnlinePlanner:
 if __name__ == '__main__':
     rospy.init_node('turtlebot_online_path_planning_node')   
     ##############     neigborhood size comparison    #######################
-    node = OnlinePlanner('/projected_map', '/odom', '/cmd_vel', np.array([-15.0, 15.0]), 0.3)
+    node = OnlinePlanner('/projected_map', '/odom', '/cmd_vel', np.array([-15.0, 15.0]), 0.2)
     
     # Run forever
     rospy.spin()

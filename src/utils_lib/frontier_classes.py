@@ -26,6 +26,8 @@ class FrontierDetector:
         self.map_resolution = 0.0
         self.occupancy_map = None
 
+        self.robot_len = 0.22
+
         # Current robot pose [x, y, yaw], None if unknown            
         self.current_pose = None
         
@@ -37,11 +39,11 @@ class FrontierDetector:
         map_c1 = data.info.width   #x
         self.map_origin = [data.info.origin.position.x, data.info.origin.position.y] 
         self.map_resolution = data.info.resolution
+        (self.r, self.c) = (map_r1,map_c1)
         
         # stiore occupancu grid map: 
-        self.occupancy_map = np.array(data.data).reshape(map_r1,map_c1)
-        (self.r, self.c) = self.occupancy_map.shape
-
+        self.occupancy_map = self.__dilate_map__(np.array(data.data).reshape(map_r1,map_c1))
+    
         self.current_pose = pose
 
     def getCandidatePoint(self,criterion='entropy'):
@@ -52,7 +54,12 @@ class FrontierDetector:
         candidate_pts, labelled_frontiers = self.label_frontiers(frontiers)         
     
 	    # Select Points: Candidate Point Selection
-        candidate_pts_ordered = self.select_point(candidate_pts)
+        if criterion=='entropy':
+            nearest = False
+        else: 
+            nearest = True
+
+        candidate_pts_ordered = self.select_point(candidate_pts, nearest)
 
         return candidate_pts_ordered, labelled_frontiers
 
@@ -72,9 +79,9 @@ class FrontierDetector:
         # binary image: 255 for frontier cells, otherwise
         result = np.zeros(shape = (self.r, self.c))
 
-        # iterate over cells: avoid boundary cells 
-        for i in range(7, self.r-7):
-            for j in range(7, self.c-7):  
+        # iterate over cells: DONT avoid boundary cells 
+        for i in range(1, self.r-1):
+            for j in range(1, self.c-1):  
                 # if cell is free, any neighborhood is unknown, it is a frontier
                 flag = False  # flag to break out of both for loops if unknown cell detected
                 if octomap[i, j] == 0:
@@ -171,7 +178,7 @@ class FrontierDetector:
         Output: 
         candidate_points_ordered: Candidate Points orders according to IG 
         ''' 
-
+        print(nearest)
         occupancy_map = copy.deepcopy(self.occupancy_map)
 
         # Map prepocessing, to have probabilities instead of absolute values
@@ -203,7 +210,8 @@ class FrontierDetector:
                 neighbor_prob = []
                 for i in range(r-mask_size,r+mask_size+1):
                     for j in range(c-mask_size,c+mask_size+1):
-                        neighbor_prob.append(occupancy_map[i,j])
+                        if self.__in_map__([i,j]):
+                            neighbor_prob.append(occupancy_map[i,j])
 
                 neighbor_prob = np.array(neighbor_prob)
 
@@ -253,6 +261,38 @@ class FrontierDetector:
         for p in pts:
             lst.append(self.__map_to_position__(p))
         return np.array(lst)
+
+    def __in_map__(self, loc):
+        '''
+        loc: list of index [x,y]
+        returns True if location is in map and false otherwise
+        '''
+        [mx,my] = loc
+        if mx >= self.r-1 or my >= self.c-1 or mx < 0 or my < 0:
+            return False 
+        return True
+
+    def __dilate_map__(self,occupancy_map):
+
+        grid_size = int(self.robot_len/2 / 0.05)
+        print(grid_size)
+        octomap = copy.deepcopy(occupancy_map)
+        print(self.r,self.c)
+
+        for r in range(grid_size, self.r -grid_size):
+            for c in range(grid_size, self.c-grid_size):
+                
+                for i in range(-grid_size, grid_size+1):
+                    for j in range(-grid_size, grid_size+1):
+
+                        if occupancy_map[r+i, c+j] == 100:
+                            octomap[r,c] = 100
+                            break
+
+        print('obstacle before: ', np.count_nonzero(occupancy_map == 100))
+        print('obstacle after: ', np.count_nonzero(octomap == 100))
+
+        return octomap
 
     def pose_to_grid_distance(self,grid, pose):
         return np.sqrt(np.sum((np.array(pose) - np.array(self.__map_to_position__(grid)))**2))
