@@ -9,7 +9,11 @@
 4. new terminal: rosrun frontier_explorationb frontier_exploration.py
 5. new terminal: rosrun frontier_explorationb move_to_pt.py
 
-## Rudimentary Results - v1 
+## Visualizations
+
+<img src="media/set4_vis/d1.png" alt="testing" height="400" width="400">
+
+## Results as images
 
 **Occupancy Grid**
 
