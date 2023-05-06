@@ -176,19 +176,34 @@ class FrontierExplorer:
     def publish_frontier_lines(self,labelled_map):   
         print(np.unique(labelled_map))
 
-        # colors = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.33), (0.0, 0.0, 0.67), (0.0, 0.0, 1.0), (0.0, 0.33, 0.0), (0.0, 0.33, 0.33), (0.0, 0.33, 0.67), (0.0, 0.33, 1.0), (0.0, 0.67, 0.0), (0.0, 0.67, 0.33), (0.0, 0.67, 0.67), (0.0, 0.67, 1.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.33), (0.0, 1.0, 0.67), (0.0, 1.0, 1.0), (0.33, 0.0, 0.0), (0.33, 0.0, 0.33), (0.33, 0.0, 0.67), (0.33, 0.0, 1.0), (0.33, 0.33, 0.0), (0.33, 0.33, 0.33), (0.33, 0.33, 0.67), (0.33, 0.33, 1.0), (0.33, 0.67, 0.0), (0.33, 0.67, 0.33), (0.33, 0.67, 0.67), (0.33, 0.67, 1.0), (0.33, 1.0, 0.0), (0.33, 1.0, 0.33), (0.33, 1.0, 0.67), (0.33, 1.0, 1.0), (0.67, 0.0, 0.0), (0.67, 0.0, 0.33), (0.67, 0.0, 0.67), (0.67, 0.0, 1.0), (0.67, 0.33, 0.0), (0.67, 0.33, 0.33), (0.67, 0.33, 0.67), (0.67, 0.33, 1.0), (0.67, 0.67, 0.0), (0.67, 0.67, 0.33), (0.67, 0.67, 0.67), (0.67, 0.67, 1.0), (0.67, 1.0, 0.0), (0.67, 1.0, 0.33), (0.67, 1.0, 0.67), (0.67, 1.0, 1.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.33), (1.0, 0.0, 0.67), (1.0, 0.0, 1.0), (1.0, 0.33, 0.0), (1.0, 0.33, 0.33), (1.0, 0.33, 0.67), (1.0, 0.33, 1.0), (1.0, 0.67, 0.0), (1.0, 0.67, 0.33), (1.0, 0.67, 0.67), (1.0, 0.67, 1.0), (1.0, 1.0, 0.0), (1.0, 1.0, 0.33), (1.0, 1.0, 0.67), (1.0, 1.0, 1.0)]
+        num_fronts =  np.max(np.unique(labelled_map))
+
+        # colors = [(0.0, 0.0, 0.33), (0.0, 0.0, 0.67), (0.0, 0.0, 1.0), (0.0, 0.33, 0.0), (0.0, 0.33, 0.33), (0.0, 0.33, 0.67), (0.0, 0.33, 1.0), (0.0, 0.67, 0.0), (0.0, 0.67, 0.33), (0.0, 0.67, 0.67), (0.0, 0.67, 1.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.33), (0.0, 1.0, 0.67), (0.0, 1.0, 1.0), (0.33, 0.0, 0.0), (0.33, 0.0, 0.33), (0.33, 0.0, 0.67), (0.33, 0.0, 1.0), (0.33, 0.33, 0.0), (0.33, 0.33, 0.33), (0.33, 0.33, 0.67), (0.33, 0.33, 1.0), (0.33, 0.67, 0.0), (0.33, 0.67, 0.33), (0.33, 0.67, 0.67), (0.33, 0.67, 1.0), (0.33, 1.0, 0.0), (0.33, 1.0, 0.33), (0.33, 1.0, 0.67), (0.33, 1.0, 1.0), (0.67, 0.0, 0.0), (0.67, 0.0, 0.33), (0.67, 0.0, 0.67), (0.67, 0.0, 1.0), (0.67, 0.33, 0.0), (0.67, 0.33, 0.33), (0.67, 0.33, 0.67), (0.67, 0.33, 1.0), (0.67, 0.67, 0.0), (0.67, 0.67, 0.33), (0.67, 0.67, 0.67), (0.67, 0.67, 1.0), (0.67, 1.0, 0.0), (0.67, 1.0, 0.33), (0.67, 1.0, 0.67), (0.67, 1.0, 1.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.33), (1.0, 0.0, 0.67), (1.0, 0.0, 1.0), (1.0, 0.33, 0.0), (1.0, 0.33, 0.33), (1.0, 0.33, 0.67), (1.0, 0.33, 1.0), (1.0, 0.67, 0.0), (1.0, 0.67, 0.33), (1.0, 0.67, 0.67), (1.0, 0.67, 1.0), (1.0, 1.0, 0.0), (1.0, 1.0, 0.33), (1.0, 1.0, 0.67), (1.0, 1.0, 1.0)]
+
+        colors = self.__create_colors__(num_fronts)
+        # print(colors)
+
+        
 
         self.marker_frontier_lines = MarkerArray()
         self.marker_frontier_lines.markers = []
 
         lines_list = []
+        val_list = []
+        label_list = []
 
         for i in range(labelled_map.shape[0]):
             for j in range(labelled_map.shape[1]):
                 val = labelled_map[i,j]
                 if val!=0:
                     lines_list.append([i,j])
+                    val_list.append(colors[val])
+                    label_list.append(val)
 
+        unique_numbers, counts = np.unique(label_list, return_counts=True)
+
+        print(unique_numbers)
+        print(counts)
         # print(lines_dict)
 
         for i in range(0,len(lines_list)):
@@ -210,13 +225,19 @@ class FrontierExplorer:
             self.myPoint.y = p[1]
             self.myMarker.pose.position = self.myPoint
             
-            self.myMarker.color=ColorRGBA(0, 0, 1, 0.5)
+            self.myMarker.color=ColorRGBA(val_list[i][0], val_list[i][1], val_list[i][2], 0.5)
+                        # self.myMarker.color=ColorRGBA(colors[i*col_jump,0], colors[val*col_jump,1], colors[val*col_jump,2], 0.5)
+
             self.myMarker.scale.x = 0.1
             self.myMarker.scale.y = 0.1
             self.myMarker.scale.z = 0.05
             # self.myMarker.lifetime = rospy.Duration(0)
-
-            self.marker_frontier_lines.markers.append(self.myMarker)
+            
+            label = label_list[i]
+            print(label)
+            num_labels = counts[label-1]
+            if num_labels>5:
+                self.marker_frontier_lines.markers.append(self.myMarker)
         # Create DELETE markers for previously published markers
         # delete_markers = MarkerArray()
         # delete_marker = Marker()
@@ -246,6 +267,32 @@ class FrontierExplorer:
         for p in pts:
             lst.append(self.__map_to_position__(p))
         return np.array(lst)
+    
+    def __create_colors__(self,combs):
+        num_cols = np.ceil(np.cbrt(combs))
+        r = np.arange(0, 1.01, 1/(num_cols-1))
+        g = np.arange(0, 1.01, 1/(num_cols-1))
+        b = np.arange(0, 1.01, 1/(num_cols-1))
+        colors = []
+        for red in r:
+            for green in g:
+                for blue in b:
+                    colors.append([red,green,blue])
+
+        colors = colors[1:]
+        col_jump = int(len(colors)/combs)
+        
+        new_colors = []
+        for i in range(0,len(colors),col_jump):
+            new_colors.append(colors[i])
+        new_colors.append(colors[0])
+
+        return np.array(new_colors)
+
+
+
+
+
 
 if __name__ == '__main__':
     rospy.init_node('frontier_explorer', anonymous=True)
