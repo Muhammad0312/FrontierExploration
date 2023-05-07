@@ -101,8 +101,11 @@ class StateValidityChecker:
             
             if self.is_valid([x,y]):
                 return np.array([x,y])
-        
-        return None
+    
+        if len(path) > abs(iter) + 1:
+            return self.compute_new_goal(path,iter-1)
+        else:
+            return None
         
 
     # Transform position with respect the map origin to cell coordinates

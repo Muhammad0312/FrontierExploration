@@ -166,7 +166,7 @@ class OnlinePlanner:
 
                 if self.svc.is_valid(self.goal) == False:
                     self.goal = self.svc.compute_new_goal(total_path)
-                    if self.goal == None:
+                    if self.goal is None:
                         self.is_moving = False
                         self.reached = True
                     else:
