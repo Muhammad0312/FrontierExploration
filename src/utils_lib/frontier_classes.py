@@ -46,7 +46,7 @@ class FrontierDetector:
     
         self.current_pose = pose
 
-    def getCandidatePoint(self,criterion='entropy'):
+    def getCandidatePoint(self,criterion=0):
         #identify frontiers: Binarization
         frontiers = self.identify_frontiers()        
 
@@ -54,12 +54,8 @@ class FrontierDetector:
         candidate_pts, labelled_frontiers = self.label_frontiers(frontiers)         
     
 	    # Select Points: Candidate Point Selection
-        if criterion=='entropy':
-            nearest = False
-        else: 
-            nearest = True
 
-        candidate_pts_ordered = self.select_point(candidate_pts, nearest)
+        candidate_pts_ordered = self.select_point(candidate_pts, labelled_frontiers)
 
         return candidate_pts_ordered, labelled_frontiers
 
@@ -166,7 +162,7 @@ class FrontierDetector:
 
         return candidate_pts, labelled_frontiers
 
-    def select_point(self, candidate_points, nearest = True):
+    def select_point(self, candidate_points, labelled_frontiers, criteria = 2):
         '''
         Selects a single point from the list of potential points using IG
         
@@ -178,7 +174,60 @@ class FrontierDetector:
         Output: 
         candidate_points_ordered: Candidate Points orders according to IG 
         ''' 
-        print(nearest)
+
+        if criteria == 0:
+            return self.nearest_frontier(candidate_points)
+        elif criteria == 1:
+            return self.maximum_area(labelled_frontiers)
+        elif criteria == 2:
+            return self.maximum_information_gain(candidate_points)
+
+    
+    '''Choose the nearest frontier'''
+    def nearest_frontier(self, candidate_points):
+        distances = []
+        candidate_points_ordered = []
+        for r, c in candidate_points:
+            # distance between pose (real base) and candidate pt (grid base)
+            d = self.pose_to_grid_distance([r,c], self.current_pose[0:2])
+            distances.append(d)
+            
+        # Candidate points are ordered according to their closeness to the robot
+        while candidate_points!=[]:    
+            idx = distances.index(min(distances))
+            distances.pop(idx)
+            candidate_points_ordered.append(candidate_points.pop(idx))
+        
+        return np.array(candidate_points_ordered)
+    
+    '''Choose the frontier which has the maximum area'''
+    def maximum_area(self, labelled_frontiers):
+        candidate_pts = []
+        frontier_area = []
+        candidate_points_ordered = []
+        regions = measure.regionprops(labelled_frontiers)
+
+        for prop in regions:
+            # avoid small frontiers (caused by map noise)
+            if prop.area > 9.0:
+                # get centroid of each frontier using regionprops property
+                x = int(prop.centroid[0])
+                y = int(prop.centroid[1])
+
+                # Save all centroid in a list that serves as candidate points
+                candidate_pts.append([int(prop.centroid[0]),int(prop.centroid[1])])
+                frontier_area.append(prop.area)
+        
+        while candidate_pts != []:
+            max_area_idx = frontier_area.index(max(frontier_area))
+            frontier_area.pop(max_area_idx)
+            candidate_points_ordered.append(candidate_pts.pop(max_area_idx))
+        
+        return np.array(candidate_points_ordered)
+
+
+    '''Choose the frontier which has the maximum information gain'''
+    def maximum_information_gain(self, candidate_points):
         occupancy_map = copy.deepcopy(self.occupancy_map)
 
         # Map prepocessing, to have probabilities instead of absolute values
@@ -190,57 +239,35 @@ class FrontierDetector:
 
         # List of entropies of candidate points
         IG = []
-        distances = []
 
         # mask size of entropy summation
         mask_size = int(10/2)
 
         # Iterate over each candidate point and compute its information gain
         for r, c in candidate_points:
-            
-            # Compute entropy in the neighborhood of that cell
-            # Stores neighboring cell entropies
-            if nearest:  # Use distance
-                # distacne between pose (real base) and candidate pt (grid base)
-                d = self.pose_to_grid_distance([r,c], self.current_pose[0:2])
-                distances.append(d)
-                # print('candidate_points list: ', candidate_points)
-                # print('distances list: ', distances)
-            else:       # use IG based on entropy
-                neighbor_prob = []
-                for i in range(r-mask_size,r+mask_size+1):
-                    for j in range(c-mask_size,c+mask_size+1):
-                        if self.__in_map__([i,j]):
-                            neighbor_prob.append(occupancy_map[i,j])
+            neighbor_prob = []
+            for i in range(r-mask_size,r+mask_size+1):
+                for j in range(c-mask_size,c+mask_size+1):
+                    if self.__in_map__([i,j]):
+                        neighbor_prob.append(occupancy_map[i,j])
 
-                neighbor_prob = np.array(neighbor_prob)
+            neighbor_prob = np.array(neighbor_prob)
 
-                # Transform these probabilities to entropies: See associated thesis chapter ()
-                entropy = -(neighbor_prob*np.log(neighbor_prob) + (1.0-neighbor_prob)*np.log(1-neighbor_prob))
-                entropy = np.nan_to_num(entropy)
-                # Sum the entropies in neighborhood
-                abs_entropy = np.sum(entropy)
-                # add to candidate point entropies list
-                IG.append(abs_entropy)
+            # Transform these probabilities to entropies: See associated thesis chapter ()
+            entropy = -(neighbor_prob*np.log(neighbor_prob) + (1.0-neighbor_prob)*np.log(1-neighbor_prob))
+            entropy = np.nan_to_num(entropy)
+            # Sum the entropies in neighborhood
+            abs_entropy = np.sum(entropy)
+            # add to candidate point entropies list
+            IG.append(abs_entropy)
 
-        # Minimize distance
-        if nearest:  
-            # Candidate points are ordered according to their closeness to the robot
-            candidate_points_ordered = []
-            while candidate_points!=[]:    
-                idx = distances.index(min(distances))
-                distances.pop(idx)
-                candidate_points_ordered.append(candidate_points.pop(idx))
-
-        # Maximize distance
-        else:  
-            # Candidate points are now ordered according to their information gains, so according to their priority
+        # Candidate points are now ordered according to their information gains, so according to their priority
+        idx = IG.index(max(IG))
+        candidate_points_ordered = []
+        while candidate_points!=[]:    
             idx = IG.index(max(IG))
-            candidate_points_ordered = []
-            while candidate_points!=[]:    
-                idx = IG.index(max(IG))
-                IG.pop(idx)
-                candidate_points_ordered.append(candidate_points.pop(idx))
+            IG.pop(idx)
+            candidate_points_ordered.append(candidate_points.pop(idx))
 
         return np.array(candidate_points_ordered)
     
