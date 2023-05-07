@@ -162,7 +162,7 @@ class FrontierDetector:
 
         return candidate_pts, labelled_frontiers
 
-    def select_point(self, candidate_points, labelled_frontiers, criteria = 2):
+    def select_point(self, candidate_points, labelled_frontiers, criteria = 1):
         '''
         Selects a single point from the list of potential points using IG
         
@@ -178,9 +178,12 @@ class FrontierDetector:
         if criteria == 0:
             return self.nearest_frontier(candidate_points)
         elif criteria == 1:
-            return self.maximum_area(labelled_frontiers)
+            return self.farthest_frontier(candidate_points)
         elif criteria == 2:
+            return self.maximum_area(labelled_frontiers)
+        elif criteria == 3:
             return self.maximum_information_gain(candidate_points)
+            
 
     
     '''Choose the nearest frontier'''
@@ -195,6 +198,23 @@ class FrontierDetector:
         # Candidate points are ordered according to their closeness to the robot
         while candidate_points!=[]:    
             idx = distances.index(min(distances))
+            distances.pop(idx)
+            candidate_points_ordered.append(candidate_points.pop(idx))
+        
+        return np.array(candidate_points_ordered)
+    
+    '''Choose the farthest frontier'''
+    def farthest_frontier(self, candidate_points):
+        distances = []
+        candidate_points_ordered = []
+        for r, c in candidate_points:
+            # distance between pose (real base) and candidate pt (grid base)
+            d = self.pose_to_grid_distance([r,c], self.current_pose[0:2])
+            distances.append(d)
+            
+        # Candidate points are ordered according to their closeness to the robot
+        while candidate_points!=[]:    
+            idx = distances.index(max(distances))
             distances.pop(idx)
             candidate_points_ordered.append(candidate_points.pop(idx))
         
