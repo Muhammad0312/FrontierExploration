@@ -176,11 +176,11 @@ class FrontierExplorer:
     def publish_frontier_lines(self,labelled_map):   
         # print(np.unique(labelled_map))
 
-        num_fronts =  np.max(np.unique(labelled_map))
+        # num_fronts =  np.max(np.unique(labelled_map))
 
         # colors = [(0.0, 0.0, 0.33), (0.0, 0.0, 0.67), (0.0, 0.0, 1.0), (0.0, 0.33, 0.0), (0.0, 0.33, 0.33), (0.0, 0.33, 0.67), (0.0, 0.33, 1.0), (0.0, 0.67, 0.0), (0.0, 0.67, 0.33), (0.0, 0.67, 0.67), (0.0, 0.67, 1.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.33), (0.0, 1.0, 0.67), (0.0, 1.0, 1.0), (0.33, 0.0, 0.0), (0.33, 0.0, 0.33), (0.33, 0.0, 0.67), (0.33, 0.0, 1.0), (0.33, 0.33, 0.0), (0.33, 0.33, 0.33), (0.33, 0.33, 0.67), (0.33, 0.33, 1.0), (0.33, 0.67, 0.0), (0.33, 0.67, 0.33), (0.33, 0.67, 0.67), (0.33, 0.67, 1.0), (0.33, 1.0, 0.0), (0.33, 1.0, 0.33), (0.33, 1.0, 0.67), (0.33, 1.0, 1.0), (0.67, 0.0, 0.0), (0.67, 0.0, 0.33), (0.67, 0.0, 0.67), (0.67, 0.0, 1.0), (0.67, 0.33, 0.0), (0.67, 0.33, 0.33), (0.67, 0.33, 0.67), (0.67, 0.33, 1.0), (0.67, 0.67, 0.0), (0.67, 0.67, 0.33), (0.67, 0.67, 0.67), (0.67, 0.67, 1.0), (0.67, 1.0, 0.0), (0.67, 1.0, 0.33), (0.67, 1.0, 0.67), (0.67, 1.0, 1.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.33), (1.0, 0.0, 0.67), (1.0, 0.0, 1.0), (1.0, 0.33, 0.0), (1.0, 0.33, 0.33), (1.0, 0.33, 0.67), (1.0, 0.33, 1.0), (1.0, 0.67, 0.0), (1.0, 0.67, 0.33), (1.0, 0.67, 0.67), (1.0, 0.67, 1.0), (1.0, 1.0, 0.0), (1.0, 1.0, 0.33), (1.0, 1.0, 0.67), (1.0, 1.0, 1.0)]
 
-        colors = self.__create_colors__(num_fronts)
+        # colors = self.__create_colors__(num_fronts)
         # print(colors)
 
         
@@ -197,7 +197,7 @@ class FrontierExplorer:
                 val = labelled_map[i,j]
                 if val!=0:
                     lines_list.append([i,j])
-                    val_list.append(colors[val])
+                    # val_list.append(colors[val])
                     label_list.append(val)
 
         unique_numbers, counts = np.unique(label_list, return_counts=True)
@@ -236,7 +236,7 @@ class FrontierExplorer:
             label = label_list[i]
             # print(label)
             num_labels = counts[label-1]
-            if num_labels>5:
+            if num_labels>7:
                 self.marker_frontier_lines.markers.append(self.myMarker)
         # Create DELETE markers for previously published markers
         # delete_markers = MarkerArray()
@@ -248,8 +248,6 @@ class FrontierExplorer:
         self.frontier_lines_pub.publish(self.marker_frontier_lines)
 
       
-    
-
     '''
     Convert map position to world coordinates. 
     '''
@@ -288,9 +286,6 @@ class FrontierExplorer:
         new_colors.append(colors[0])
 
         return np.array(new_colors)
-
-
-
 
 
 

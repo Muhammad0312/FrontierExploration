@@ -55,8 +55,8 @@ class StateValidityChecker:
     # Given a pose, returs true if the pose is not in collision and false othewise.
     def is_valid(self, pose,checking_path=False): 
 
-        # TODO: convert world robot position to map coordinates using method __position_to_map__
-        # TODO: check occupancy of the vicinity of a robot position (indicated by self.distance atribude). 
+        # convert world robot position to map coordinates using method __position_to_map__
+        # check occupancy of the vicinity of a robot position (indicated by self.distance atribude). 
         # print('pose: ', pose)
         grid_pose = self.__position_to_map__(pose)
 
@@ -82,6 +82,28 @@ class StateValidityChecker:
             # print('pose: ', pose)
             # print('pose: ', grid_pose)
             return False
+
+    def compute_new_goal(self,path,iter = -1):
+        print("compute_new_goal")
+        step_size=0.04
+        print('path: ',path)
+        print('iter: ',iter)
+
+        p1, p2 = [path[iter], path[iter-1]]
+
+        dist = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2)
+        num_steps = dist / step_size
+        num_steps= int(num_steps)
+        for j in range(num_steps):
+            interpolation = float(j) / num_steps  
+            x = p1[0] * (1-interpolation) + p2[0] * interpolation
+            y = p1[1] * (1-interpolation) + p2[1] * interpolation
+            
+            if self.is_valid([x,y]):
+                return np.array([x,y])
+        
+        return None
+        
 
     # Transform position with respect the map origin to cell coordinates
     def __position_to_map__(self, p):
@@ -133,8 +155,8 @@ class StateValidityChecker:
             # print ("the number of steps in between","  ",num_steps)
             for j in range(num_steps):
                 interpolation = float(j) / num_steps  #the interpolation value for each step to find the pt we are checking right now
-                #print ('interpolation', interpolation)
-                #p = p1 * (1 - interpolation) + p2 * interpolation
+                # print ('interpolation', interpolation)
+                # p = p1 * (1 - interpolation) + p2 * interpolation
                 x = p1[0] * (1-interpolation) + p2[0] * interpolation
                 y = p1[1] * (1-interpolation) + p2[1] * interpolation
                 # print ('the point we are checking', (x, y))
@@ -143,15 +165,15 @@ class StateValidityChecker:
         # TODO: for each point check if `is_valid``. If only one element is not valid return False, otherwise True. 
         # In case the robot lands on obstacle space while picking the can, allow some margin since now it is no longer obstacle space
         # print('---------------------------------')
-        waypts_to_skip = int(round(self.distance*1.2/step_size))
+        # waypts_to_skip = int(round(self.distance*1.2/step_size))
         # print('waypt len before: ', len(waypoints))
-        try:
-            waypoints = waypoints[waypts_to_skip:len(waypoints)-waypts_to_skip] 
-        except:
-            try:
-                waypoints = waypoints[waypts_to_skip:] 
-            except:
-                pass
+        # try:
+        #     waypoints = waypoints[waypts_to_skip:len(waypoints)-waypts_to_skip] 
+        # except:
+        #     try:
+        #         waypoints = waypoints[waypts_to_skip:] 
+        #     except:
+        #         pass
         # print('waypt len after: ', len(waypoints))
         for w in waypoints:
             # print(w)

@@ -29,7 +29,7 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
             path_x,path_y= rrt_star.planning()
             path_x, path_y = path_x[::-1], path_y[::-1]
             path = x_y_to_xy(path_x,path_y)
-            print(path)
+            # print(path)
             if smoothing == 'Dubins':
                 max_c = 5.0
                 path = Add_theta(path_x,path_y)
@@ -50,7 +50,7 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
             path_x,path_y=fmt.Planning()
             path_x, path_y = path_x[::-1], path_y[::-1]
             path = x_y_to_xy(path_x,path_y)
-            print(path)
+            # print(path)
             if smoothing == 'Dubins':
                 max_c = 5.0
                 path = Add_theta(path_x,path_y)
@@ -72,7 +72,7 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
             path_x, path_y = path_x[::-1], path_y[::-1]
             path = x_y_to_xy(path_x,path_y)
             
-            print(path)
+            # print(path)
             if smoothing == 'Dubins':
                 max_c = 10.0
                 path = Add_theta(path_x,path_y,start_p[2])
@@ -150,7 +150,7 @@ def Add_theta(path_x,path_y,curr_theta):
         angle = round(angle / 30) * 30
         path.append((x0, y0, angle))
     path.append((path_x[-1], path_y[-1], angle))
-    print('curr theta: ', curr_theta)
+    # print('curr theta: ', curr_theta)
     path[0] = (path[0][0], path[0][1], 0)
     # print(path[0])
     return path

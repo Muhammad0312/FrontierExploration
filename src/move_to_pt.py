@@ -34,7 +34,7 @@ class OnlinePlanner:
         # decide which planner you want
         # Options: RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, 
         # InRRTStar-BSpline, FMT-BSpline, BIT-BSpline
-        self.planner_config = 'RRTStarOMPL'
+        self.planner_config = 'BIT-'
 
         # ATTRIBUTE
         # List of points which define the plan. None if there is no plan
@@ -163,11 +163,18 @@ class OnlinePlanner:
             if self.path is not None and len(self.path) > 0:
                 # create total_path adding the current position to the rest of waypoints in the path
                 total_path = [self.current_pose[0:2]] + self.path
-                if self.svc.check_path(total_path) == False:
-                    print("Invaluid Path")
+
+                if self.svc.is_valid(self.goal) == False:
+                    self.goal = self.svc.compute_new_goal(total_path)
+                    if self.goal == None:
+                        self.is_moving = False
+                        self.reached = True
+                    else:
+                        self.path = self.plan()
+
+                elif self.svc.check_path(total_path) == False:
+                    print("Invalid Path")
                     self.path = self.plan() 
-
-
 
     # Solve plan from current position to self.goal. 
     def plan(self):
@@ -178,35 +185,15 @@ class OnlinePlanner:
         while len(path) <= 1 and trial < 5:
             print("Compute new path")
 
-            # TODO: plan a path from self.current_pose to self.goal
+            # plan a path from self.current_pose to self.goal
             path = compute_path(self.planner_config, self.current_pose, self.goal,self.svc, self.dominion, max_time=3.0) 
             trial += 1
+            
+        print("Path found")
+        self.publish_path(path)
 
-        if trial == 5:
-            # If planning fails, consider increasing the planning time
-            print("Path not found! Let's try a nearby point")
-
-            # This condition ensure that if we land on obstacle map, we chose the a nearby free space as starting point of planning doesnt fail
-            start_pt = self.current_pose
-            while len(path) == 0:
-                start_pt[0] += 0.1
-                start_pt[1] += 0.1
-                try:
-                    path = compute_path(self.planner_config, start_pt, self.goal,self.svc, self.dominion, max_time=3.0)
-                except:
-                    pass
-            print("Path found")
-            # Publish plan marker to visualize in rviz
-            # print(path)
-            self.publish_path(path)
-            # Do NOT delete initial point, as initial point is not current pose.
-        else:
-            print("Path found")
-            # Publish plan marker to visualize in rviz
-            # print(path)
-            self.publish_path(path)
-            # remove initial waypoint in the path (current pose is already reached)
-            del path[0]                 
+        del path[0]                 
+        
         return path
 
 
