@@ -162,7 +162,7 @@ class FrontierDetector:
 
         return candidate_pts, labelled_frontiers
 
-    def select_point(self, candidate_points, labelled_frontiers, criteria = 1):
+    def select_point(self, candidate_points, labelled_frontiers, criteria = 4):
         '''
         Selects a single point from the list of potential points using IG
         
@@ -183,6 +183,8 @@ class FrontierDetector:
             return self.maximum_area(labelled_frontiers)
         elif criteria == 3:
             return self.maximum_information_gain(candidate_points)
+        elif criteria == 4:
+            return self.biggest_cluster(candidate_points)
             
 
     
@@ -289,6 +291,27 @@ class FrontierDetector:
             IG.pop(idx)
             candidate_points_ordered.append(candidate_points.pop(idx))
 
+        return np.array(candidate_points_ordered)
+    
+    '''
+    Choose the frontier from where other frontiers are nearest
+    '''
+    def biggest_cluster(self, candidate_points):
+        candidate_points_ordered = []
+        cummulative_distances = []
+        for r, c in candidate_points:
+            all_distances = []
+            for r1, c1 in candidate_points:
+                d = self.pose_to_grid_distance([r,c], [r1, c1])
+                all_distances.append(d)
+            cummulative_distances.append(sum(all_distances))
+
+        print('Cummulative distances', cummulative_distances)
+        while candidate_points!=[]:    
+            idx = cummulative_distances.index(min(cummulative_distances))
+            cummulative_distances.pop(idx)
+            candidate_points_ordered.append(candidate_points.pop(idx))
+        
         return np.array(candidate_points_ordered)
     
     '''
