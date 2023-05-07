@@ -37,7 +37,7 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
                 return path
             elif smoothing == 'BSpline':
                 if len(path) > 2:
-                    path = bspline_smooth(path)
+                    path = smooth_path_bspline(path)
                 return path
             else:
                 return x_y_to_xy(path_x,path_y)
@@ -58,7 +58,7 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
                 return path
             elif smoothing == 'BSpline':
                 if len(path) > 2:
-                    path = bspline_smooth(path)
+                    path = smooth_path_bspline(path)
                 return path
             else:
                 return x_y_to_xy(path_x,path_y)
@@ -80,7 +80,7 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
                 return path
             elif smoothing == 'BSpline':
                 if len(path) > 2:
-                    path = bspline_smooth(path)
+                    path = smooth_path_bspline(path)
                 return path
             else:
                 return x_y_to_xy(path_x,path_y)            
