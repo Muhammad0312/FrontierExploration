@@ -183,8 +183,6 @@ class FrontierExplorer:
         # colors = self.__create_colors__(num_fronts)
         # print(colors)
 
-        
-
         self.marker_frontier_lines = MarkerArray()
         self.marker_frontier_lines.markers = []
 

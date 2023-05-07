@@ -7,26 +7,22 @@ import numpy as np
 from scipy import interpolate
 from collections import OrderedDict
 
+
 def distance_between_points(x1, y1, x2, y2):
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
-
-
-def distance_between_points(self, x1, y1, x2, y2):
         return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
 
-def points_on_line(self, x1, y1, x2, y2, n):
+def points_on_line(x1, y1, x2, y2, n):
     dx = (x2 - x1) / (n - 1)
     dy = (y2 - y1) / (n - 1)
     return [(x1 + i * dx, y1 + i * dy) for i in range(n - 1)] + [(x2, y2)]
 
-def smooth_path_bspline(self, waypoints):
+def smooth_path_bspline(waypoints):
     interpolated_points = []
 
     for i in range(0, len(waypoints) - 1):
-        num_of_points = int(self.distance_between_points(waypoints[i][0], waypoints[i][1], waypoints[i+1][0], waypoints[i+1][1]))
-        new_points = self.points_on_line(waypoints[i][0], waypoints[i][1], waypoints[i+1][0], waypoints[i+1][1], (num_of_points)+2)
+        num_of_points = int(distance_between_points(waypoints[i][0], waypoints[i][1], waypoints[i+1][0], waypoints[i+1][1]))
+        new_points = points_on_line(waypoints[i][0], waypoints[i][1], waypoints[i+1][0], waypoints[i+1][1], (num_of_points)+2)
         for p in new_points:
             interpolated_points.append(p)
 

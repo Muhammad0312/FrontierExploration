@@ -18,6 +18,7 @@ from math import sqrt
 
 from utils_lib.online_planning import *
 from utils_lib.path_planners import *
+from utils_lib.smooth_controller import *
 # import posePoint.srv
 from frontier_explorationb.srv import posePoint
 # from 
@@ -34,7 +35,7 @@ class OnlinePlanner:
         # decide which planner you want
         # Options: RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, 
         # InRRTStar-BSpline, FMT-BSpline, BIT-BSpline
-        self.planner_config = 'BIT-'
+        self.planner_config = 'BIT-BSpline'
 
         # ATTRIBUTE
         # List of points which define the plan. None if there is no plan
@@ -85,7 +86,7 @@ class OnlinePlanner:
         self._as = actionlib.SimpleActionServer('move_to_point', go_to_pointAction, execute_cb=self.execute_cb, auto_start = False)
         self._as.start()
 
-        rospy.Timer(rospy.Duration(0.1), self.controller)
+        rospy.Timer(rospy.Duration(0.05), self.controller)
         
     def execute_cb(self, goal):
         # helper variables
@@ -220,7 +221,8 @@ class OnlinePlanner:
                     # self._as.set_succeeded(self._result)
             else:
                 # TODO: Compute velocities using controller function in utils_lib
-                v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
+                # v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
+                v,w = move_to_point_smooth(self.current_pose, self.path[0], Kp=10, Ki=10, Kd=10, dt=0.05)
                 self.is_moving = True
                 # print(v,w)
         
