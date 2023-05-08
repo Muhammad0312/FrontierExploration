@@ -35,7 +35,7 @@ class OnlinePlanner:
         # decide which planner you want
         # Options: RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, 
         # InRRTStar-BSpline, FMT-BSpline, BIT-BSpline
-        self.planner_config = 'BIT-BSpline'
+        self.planner_config = 'BIT-Dubins'
 
         # ATTRIBUTE
         # List of points which define the plan. None if there is no plan
@@ -222,7 +222,7 @@ class OnlinePlanner:
             else:
                 # TODO: Compute velocities using controller function in utils_lib
                 # v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
-                v,w = move_to_point_smooth(self.current_pose, self.path[0], Kp=10, Ki=10, Kd=10, dt=0.05)
+                v,w = move_to_point_smooth(self.current_pose, self.path[0], Kp=1, Ki=0, Kd=0, dt=0.05)
                 self.is_moving = True
                 # print(v,w)
         
@@ -258,7 +258,7 @@ class OnlinePlanner:
             self.marker_pub.publish(m)
 
             m.action = Marker.ADD
-            m.scale.x = 0.1
+            m.scale.x = 0.03
             m.scale.y = 0.0
             m.scale.z = 0.0
             
