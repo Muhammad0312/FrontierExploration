@@ -151,20 +151,13 @@ class OnlinePlanner:
             origin = [gridmap.info.origin.position.x, gridmap.info.origin.position.y]
             self.svc.set(env, gridmap.info.resolution, origin)
 
-            
-            # # If robot isnt moving, call frontier to get a new goal
-            # if self.is_moving == False:
-            #     # Call service to get the initial goal
-            #     goal = self.server_set_goal(True)
-            #     self.goal = np.array([goal.x, goal.y])
-            #     self.is_moving = True
-            #     self.path = self.plan() 
 
             # If the robot is following a path, check if it is still valid
             if self.path is not None and len(self.path) > 0:
                 # create total_path adding the current position to the rest of waypoints in the path
                 total_path = [self.current_pose[0:2]] + self.path
 
+                # if the goal becomes invalid, find nearest reacheable point from goal
                 if self.svc.is_valid(self.goal) == False:
                     self.goal = self.svc.compute_new_goal(total_path)
                     if self.goal is None:
@@ -172,6 +165,9 @@ class OnlinePlanner:
                         self.reached = True
                     else:
                         self.path = self.plan()
+
+                # if the starting point is near the obstacle, move the robot a bit back.
+                if self.svc.is_valid([self.current_pose[0],
 
                 elif self.svc.check_path(total_path) == False:
                     print("Invalid Path")
