@@ -166,7 +166,7 @@ class FrontierDetector:
 
         return candidate_pts, labelled_frontiers
 
-    def select_point(self, candidate_points, labelled_frontiers, criteria = 3):
+    def select_point(self, candidate_points, labelled_frontiers, criteria = 5):
         '''
         Selects a single point from the list of potential points using IG
         
@@ -227,7 +227,17 @@ class FrontierDetector:
             print('entropy: ',abs_entropy)
             d = self.pose_to_grid_distance([r,c], self.current_pose[0:2])
             abs_entropy= abs_entropy*np.exp(-d)
+            print('entropy: ',abs_entropy)
             IG.append(abs_entropy)   
+        # Candidate points are now ordered according to their information gains, so according to their priority
+        idx = IG.index(max(IG))
+        candidate_points_ordered = []
+        while candidate_points!=[]:    
+            idx = IG.index(max(IG))
+            IG.pop(idx)
+            candidate_points_ordered.append(candidate_points.pop(idx))
+
+        return np.array(candidate_points_ordered)
 
     '''Choose the nearest frontier'''
     def nearest_frontier(self, candidate_points):
