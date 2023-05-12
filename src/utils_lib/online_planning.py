@@ -84,10 +84,10 @@ class StateValidityChecker:
             return False
 
     def compute_new_goal(self,path,iter = -1):
-        print("compute_new_goal")
+        # print("compute_new_goal")
         step_size=0.04
-        print('path: ',path)
-        print('iter: ',iter)
+        # print('path: ',path)
+        # print('iter: ',iter)
 
         p1, p2 = [path[iter], path[iter-1]]
 

@@ -8,7 +8,7 @@ def wrap_angle(angle):
 
 def move_to_point_smooth(current, goal, Kp=10, Ki=10, Kd=10, dt=0.05):
     # Compute distance and angle to goal
-    print('Goal: ', goal)
+    # print('Goal: ', goal)
     dx = goal[0] - current[0]
     dy = goal[1] - current[1]
     dist = math.sqrt(dx**2 + dy**2)

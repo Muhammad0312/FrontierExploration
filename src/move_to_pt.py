@@ -13,6 +13,7 @@ from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseStamped, Pose, PointStamped
 from std_srvs.srv import Trigger, TriggerRequest, EmptyResponse
 import actionlib
+import time
 
 from math import sqrt
 
@@ -35,7 +36,7 @@ class OnlinePlanner:
         # decide which planner you want
         # Options: RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, 
         # InRRTStar-BSpline, FMT-BSpline, BIT-BSpline
-        self.planner_config = 'BIT-BSpline'
+        self.planner_config = 'BIT-'
 
         # ATTRIBUTE
         # List of points which define the plan. None if there is no plan
@@ -49,7 +50,9 @@ class OnlinePlanner:
         # Last time a map was received (to avoid map update too often)                                                
         self.last_map_time = rospy.Time.now()
         # Dominion [min_x_y, max_x_y] in which the path planner will sample configurations                           
-        self.dominion = dominion                                        
+        self.dominion = dominion         
+
+        self.going_back = False                               
 
         # CONTROLLER PARAMETERS
         # Proportional linear velocity controller gain
@@ -143,7 +146,7 @@ class OnlinePlanner:
     def get_gridmap(self, gridmap):
     
         # to avoid map update too often (change value if necessary)
-        if (gridmap.header.stamp - self.last_map_time).to_sec() > 1:            
+        if (gridmap.header.stamp - self.last_map_time).to_sec() > 0.1:            
             self.last_map_time = gridmap.header.stamp
 
             # Update State Validity Checker
@@ -166,8 +169,6 @@ class OnlinePlanner:
                     else:
                         self.path = self.plan()
 
-                # if the starting point is near the obstacle, move the robot a bit back.
-                if self.svc.is_valid([self.current_pose[0],
 
                 elif self.svc.check_path(total_path) == False:
                     print("Invalid Path")
@@ -178,6 +179,13 @@ class OnlinePlanner:
         # List of waypoints [x, y] that compose the plan
         path = []
         trial = 0
+
+        # if the starting point is near the obstacle, move the robot a bit back.
+        # if self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
+        #     self.path = None
+        #     self.goal = None
+        #     return None
+
         # If planning fials, allow replanning for several trials
         while len(path) <= 1 and trial < 5:
             print("Compute new path")
@@ -199,6 +207,22 @@ class OnlinePlanner:
     def controller(self, event):
         v = 0
         w = 0
+
+        # if the starting point is near the obstacle, move the robot a bit back.
+        print('is valid: ',self.svc.is_valid([self.current_pose[0],self.current_pose[1]]))
+        if self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
+            self.path = None
+            self.goal = None
+            while self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
+                self.__send_command__(-0.05, 0.0)
+                self.going_back = True
+                self.path = None
+            self.__send_command__(0.0, 0.0)
+            self.going_back = False
+            self.is_moving = False
+            self.reached = True
+
+
         if self.path is not None and len(self.path) > 0:
             
             # If current waypoint reached with some tolerance move to next way point, otherwise move to current point
@@ -218,8 +242,9 @@ class OnlinePlanner:
             else:
                 # TODO: Compute velocities using controller function in utils_lib
                 # v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
+                # if not(self.going_back):
                 v,w = move_to_point_smooth(self.current_pose, self.path[0], Kp=10, Ki=10, Kd=10, dt=0.05)
-                self.is_moving = True
+                    # self.is_moving = True
                 # print(v,w)
         
         # Publish velocity commands
