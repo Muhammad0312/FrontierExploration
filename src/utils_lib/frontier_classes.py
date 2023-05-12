@@ -166,7 +166,7 @@ class FrontierDetector:
 
         return candidate_pts, labelled_frontiers
 
-    def select_point(self, candidate_points, labelled_frontiers, criteria = 5):
+    def select_point(self, candidate_points, labelled_frontiers, criteria = 0):
         '''
         Selects a single point from the list of potential points using IG
         

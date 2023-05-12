@@ -37,6 +37,7 @@ class OnlinePlanner:
         # Options: RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, 
         # InRRTStar-BSpline, FMT-BSpline, BIT-BSpline
         self.planner_config = 'BIT-'
+        self.curved_coltroller = False
 
         # ATTRIBUTE
         # List of points which define the plan. None if there is no plan
@@ -241,9 +242,12 @@ class OnlinePlanner:
                     # self._as.set_succeeded(self._result)
             else:
                 # TODO: Compute velocities using controller function in utils_lib
-                # v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
+                # 
                 # if not(self.going_back):
-                v,w = move_to_point_smooth(self.current_pose, self.path[0], Kp=10, Ki=10, Kd=10, dt=0.05)
+                if self.curved_coltroller:
+                    v,w = move_to_point_smooth(self.current_pose, self.path[0], Kp=10, Ki=10, Kd=10, dt=0.05)
+                else:
+                    v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
                     # self.is_moving = True
                 # print(v,w)
         
