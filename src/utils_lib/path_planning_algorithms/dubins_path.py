@@ -311,7 +311,7 @@ def dupin_smooth(states,max_c):
             path_x.append(x)
             path_y.append(y)
             yaw.append(iyaw)
-            smooth_path.append((x, y, iyaw))
+            smooth_path.append([x, y, iyaw])
     return smooth_path
 
 def main():

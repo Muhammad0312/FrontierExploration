@@ -279,7 +279,7 @@ class OnlinePlanner:
             self.marker_pub.publish(m)
 
             m.action = Marker.ADD
-            m.scale.x = 0.1
+            m.scale.x = 0.03
             m.scale.y = 0.0
             m.scale.z = 0.0
             

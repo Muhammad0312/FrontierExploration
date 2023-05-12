@@ -1,11 +1,13 @@
 ﻿# Frontier Exploration - Hands-on Planning
+## dependencies:
+- pip install scikit-image
 
 ## HOW TO RUN:
-
 
 1. Clone in your WS
 2. export TURTLEBOT3_MODEL=burger
 3. in same terminal: roslaunch frontier_explorationb octomap.launch
+- octomap2,3 so on .launch
 4. new terminal: rosrun frontier_explorationb frontier_exploration.py
 5. new terminal: rosrun frontier_explorationb move_to_pt.py
 

@@ -34,7 +34,8 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
                 max_c = 5.0
                 path = Add_theta(path_x,path_y)
                 path=dupin_smooth(path, max_c)
-                return path
+                path=np.array(path)[:,0:2]
+                return list(path)
             elif smoothing == 'BSpline':
                 if len(path) > 2:
                     path = smooth_path_bspline(path)
@@ -52,10 +53,11 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
             path = x_y_to_xy(path_x,path_y)
             # print(path)
             if smoothing == 'Dubins':
-                max_c = 5.0
+                max_c = 8.0
                 path = Add_theta(path_x,path_y)
                 path=dupin_smooth(path, max_c)
-                return path
+                path=np.array(path)[:,0:2]
+                return list(path)
             elif smoothing == 'BSpline':
                 if len(path) > 2:
                     path = smooth_path_bspline(path)
@@ -74,10 +76,11 @@ def compute_path(planner_config,start_p, goal_p, state_validity_checker, dominio
             
             # print(path)
             if smoothing == 'Dubins':
-                max_c = 10.0
-                path = Add_theta(path_x,path_y,start_p[2])
+                max_c = 4.0
+                path = Add_theta(path_x,path_y)
                 path=dupin_smooth(path, max_c)
-                return path
+                path=np.array(path)[:,0:2]
+                return list(path)
             elif smoothing == 'BSpline':
                 if len(path) > 2:
                     path = smooth_path_bspline(path)
@@ -140,7 +143,7 @@ def RRTStarOMPL(start_p, goal_p, state_validity_checker, dominion, max_time=2.0)
     # print ("path", path)
     return ret
         
-def Add_theta(path_x,path_y,curr_theta):
+def Add_theta(path_x,path_y):
     path = []
     for i in range(len(path_x)-1):
         x0, y0 = path_x[i], path_y[i]

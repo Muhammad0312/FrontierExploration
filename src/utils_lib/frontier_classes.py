@@ -166,7 +166,7 @@ class FrontierDetector:
 
         return candidate_pts, labelled_frontiers
 
-    def select_point(self, candidate_points, labelled_frontiers, criteria = 3):
+    def select_point(self, candidate_points, labelled_frontiers, criteria = 5):
         '''
         Selects a single point from the list of potential points using IG
         
@@ -189,7 +189,56 @@ class FrontierDetector:
             return self.maximum_information_gain(candidate_points)
         elif criteria == 4:
             return self.biggest_cluster(candidate_points)
+        elif criteria == 5:
+            return self.maximum_information_gain_modified(candidate_points)
         
+        '''Choose the nearest frontier'''
+    def maximum_information_gain_modified(self, candidate_points):
+        occupancy_map = copy.deepcopy(self.occupancy_map)
+
+        # Map prepocessing, to have probabilities instead of absolute values
+        # Map the absolute values to probability of that cell being occupied
+        occupancy_map = occupancy_map.astype(np.float32)
+        occupancy_map[np.where(occupancy_map==-1.0)] = 0.5 # Unknown space
+        occupancy_map[np.where(occupancy_map==0.0)] = 0.0001 # Free space
+        occupancy_map[np.where(occupancy_map==100.0)] = 1.0 # Occupied space
+
+        # List of entropies of candidate points
+        IG = []
+        distances = []
+        # mask size of entropy summation
+        mask_size = int(10/2)
+
+        # Iterate over each candidate point and compute its information gain
+        for r, c in candidate_points:
+            neighbor_prob = []
+            for i in range(r-mask_size,r+mask_size+1):
+                for j in range(c-mask_size,c+mask_size+1):
+                    if self.__in_map__([i,j]):
+                        neighbor_prob.append(occupancy_map[i,j])
+
+            neighbor_prob = np.array(neighbor_prob)
+
+            # Transform these probabilities to entropies: See associated thesis chapter ()
+            entropy = -(neighbor_prob*np.log2(neighbor_prob) + (1.0-neighbor_prob)*np.log2(1-neighbor_prob))
+            entropy = np.nan_to_num(entropy)
+            # Sum the entropies in neighborhood
+            abs_entropy = np.sum(entropy)
+            print('entropy: ',abs_entropy)
+            d = self.pose_to_grid_distance([r,c], self.current_pose[0:2])
+            abs_entropy= abs_entropy*np.exp(-d)
+            print('entropy: ',abs_entropy)
+            IG.append(abs_entropy)   
+        # Candidate points are now ordered according to their information gains, so according to their priority
+        idx = IG.index(max(IG))
+        candidate_points_ordered = []
+        while candidate_points!=[]:    
+            idx = IG.index(max(IG))
+            IG.pop(idx)
+            candidate_points_ordered.append(candidate_points.pop(idx))
+
+        return np.array(candidate_points_ordered)
+
     '''Choose the nearest frontier'''
     def nearest_frontier(self, candidate_points):
         distances = []
