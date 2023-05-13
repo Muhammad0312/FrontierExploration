@@ -1,5 +1,5 @@
 ﻿# Frontier Exploration - Hands-on Planning
-## dependencies:
+## Dependencies:
 - pip install scikit-image
 
 ## HOW TO RUN:
@@ -10,6 +10,18 @@
 - octomap2,3 so on .launch
 4. new terminal: rosrun frontier_explorationb frontier_exploration.py
 5. new terminal: rosrun frontier_explorationb move_to_pt.py
+
+# Parameters:
+
+Update robot width in:
+1. frontier_class.py as self.robot_len
+2. move_to_point.py as last argument of OnlinePlanner('/projected_map', '/odom', '/cmd_vel', np.array([-15.0, 15.0]), 0.2)
+
+General path planner parameters (eg dominion) can be modified from the init of move_to_point. Parameters specific to different path planners need to be modified in utils_lib/path_planners.py file
+
+Modify the two attributes in move_to_point.py to set planner config. See code for options:
+1. self.planner_config = 'BIT-'
+2. self.curved_coltroller = False
 
 # Explanation
 
@@ -64,7 +76,17 @@ The motion planners that include Dubins or Spline need a curved controller. A sa
 
 **self.curved_coltroller = False**
 
+The execute_action() function recives the goal from the frontier_exploration client node. It saves goal and plans path. It also returns the action call with feedback (distance to goal) and result (success when goal reached).
 
+get_gridmap() is the occupancy map callback. It stores the map and its info. It also checks if the path is valid, otherwise, it recomputes the path. Additionally it also checks if the goal has become invalid, in which case, it sets reached as True, which promts the frontier_exploration client node to provide a new point.
+
+plan() function calls compute_path(), with the specified planner_config and other planning related parameters. The compute_path() function then computes the path, by calling the appropriate planner and smoother according to he specified planner_config.
+
+controller() function is periodically called to actively steer the robot on the path. Straight line or curved controller is chosen depending on the curved_coltroller attribute specified in init.
+
+
+## Extras:
+Save map node subscribes to the occupancy map and saves the (dilated?) map as a numpy array txt file. 
 
 
 

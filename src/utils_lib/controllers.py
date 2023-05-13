@@ -6,6 +6,22 @@ from collections import OrderedDict
 def wrap_angle(angle):
     return (angle + ( 2.0 * np.pi * np.floor( ( np.pi - angle ) / ( 2.0 * np.pi ) ) ) )
 
+def distance_to_goal( goal,current):        #distance between the current pose and the goal pose 
+    return math.sqrt(( goal[0] - current[0])**2 + ( goal[1] - current[1])**2)
+
+def move_to_point(current, goal, Kv=0.5, Kw=0.5):
+    v = Kv * distance_to_goal(current, goal)
+    steering = wrap_angle(math.atan2(goal[1] - current[1], goal[0] - current[0]))
+    w = Kw * wrap_angle((steering - current[2]))
+
+    if abs(steering- current[2]) > 0.16:  #Check if heading is within a tolerance level of desired heading
+        # Set heading towards goal
+        return 0,w
+    else:
+        # If the heading is within tolerance, change both v and w
+        # so unneccessary stopping for minor turns doesn't happen
+        return v,w
+
 def move_to_point_smooth(current, goal, Kp=10, Ki=10, Kd=10, dt=0.05):
     # Compute distance and angle to goal
     # print('Goal: ', goal)

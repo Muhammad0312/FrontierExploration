@@ -17,12 +17,11 @@ import time
 
 from math import sqrt
 
-from utils_lib.online_planning import *
+from utils_lib.state_validity_checker import *
 from utils_lib.path_planners import *
-from utils_lib.smooth_controller import *
+from utils_lib.controllers import *
 # import posePoint.srv
 from frontier_explorationb.srv import posePoint
-# from 
 from frontier_explorationb.msg import go_to_pointAction, go_to_pointGoal, go_to_pointFeedback, go_to_pointResult 
 
 class OnlinePlanner:
@@ -95,11 +94,12 @@ class OnlinePlanner:
         rospy.Timer(rospy.Duration(0.05), self.controller)
         
     def execute_action(self, goal):
-        # helper variables
+        
         r = rospy.Rate(1)
         success = False
         print('goal received: ',goal.goal_x,goal.goal_y)
         
+        # save the recieved goal and plan path
         self.goal = np.array([goal.goal_x, goal.goal_y])
         self.is_moving = True
         self.path = self.plan()
@@ -129,23 +129,23 @@ class OnlinePlanner:
                 success = False
                 break
 
-        # print('success')
-        # self._result.success = True
-        # self._as.set_succeeded(self._result)
-
-    # Odometry callback: Gets current robot pose and stores it into self.current_pose
+    '''
+    Odometry callback: 
+    Gets current robot pose and stores it into self.current_pose
+    '''
     def get_odom(self, odom):
         _, _, yaw = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x, 
                                                               odom.pose.pose.orientation.y,
                                                               odom.pose.pose.orientation.z,
                                                               odom.pose.pose.orientation.w])
-        self.current_pose = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, yaw])
-        # print('odom received')
+        self.current_pose = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, yaw]) 
     
-    
-        
-    # Map callback:  Gets the latest occupancy map published by Octomap server and update 
-    # the state validity checker
+    '''
+    Occupancy map callback: 
+    Called when a new occupancy grid is received. Stores map and its info
+    Checks if the path is valid. Otherwise, recomputes path
+    Checks if goal has become invalid 
+    '''
     def get_gridmap(self, gridmap):
     
         # to avoid map update too often (change value if necessary)
@@ -177,17 +177,13 @@ class OnlinePlanner:
                     print("Invalid Path")
                     self.path = self.plan() 
 
-    # Solve plan from current position to self.goal. 
+    '''
+    Create plan from current position to self.goal
+    ''' 
     def plan(self):
         # List of waypoints [x, y] that compose the plan
         path = []
         trial = 0
-
-        # if the starting point is near the obstacle, move the robot a bit back.
-        # if self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
-        #     self.path = None
-        #     self.goal = None
-        #     return None
 
         # If planning fials, allow replanning for several trials
         while len(path) <= 1 and trial < 5:
@@ -205,61 +201,62 @@ class OnlinePlanner:
         return path
 
 
-    # This method is called every 0.1s. It computes the velocity comands in order to reach the 
-    # next waypoint in the path. It also sends zero velocity commands if there is no active path.
+    '''
+    This method is called every 0.1s. It computes the velocity comands in order to reach the 
+    next waypoint in the path. It also sends zero velocity commands if there is no active path.
+    '''
     def controller(self, event):
         v = 0
         w = 0
 
         # if the starting point is near the obstacle, move the robot a bit back.
-        print('is valid: ',self.svc.is_valid([self.current_pose[0],self.current_pose[1]]))
-        if self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
-            self.path = None
-            self.goal = None
-            while self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
-                self.__send_command__(-0.05, 0.0)
-                self.going_back = True
-                self.path = None
-            self.__send_command__(0.0, 0.0)
-            self.going_back = False
-            self.is_moving = False
-            self.reached = True
+        # print('is valid: ',self.svc.is_valid([self.current_pose[0],self.current_pose[1]]))
+        # if self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
+        #     self.path = None
+        #     self.goal = None
+        #     while self.svc.is_valid([self.current_pose[0],self.current_pose[1]]) == False:
+        #         self.__send_command__(-0.05, 0.0)
+        #         self.going_back = True
+        #         self.path = None
+        #     self.__send_command__(0.0, 0.0)
+        #     self.going_back = False
+        #     self.is_moving = False
+        #     self.reached = True
 
 
         if self.path is not None and len(self.path) > 0:
             
             # If current waypoint reached with some tolerance move to next way point, otherwise move to current point
             if np.linalg.norm(self.path[0] - self.current_pose[0:2]) < 0.1:
-                # print (" self.current_pose[0:2]", self.current_pose[0:2],"self.svc.resolution",self.svc.resolution)
-                # print("---------------------------------------------")
-                # print("path point",self.path[0],"current_pose",self.current_pose)
-                # print("Position {} reached".format(self.path[0]))
                 del self.path[0]
                 if len(self.path) == 0:
                     self.goal = None
                     print("Final position reached!")
                     self.is_moving = False
                     self.reached = True
-                    # self._result.success = True
-                    # self._as.set_succeeded(self._result)
             else:
-                # TODO: Compute velocities using controller function in utils_lib
-                # 
-                # if not(self.going_back):
                 if self.curved_coltroller:
                     v,w = move_to_point_smooth(self.current_pose, self.path[0], Kp=10, Ki=10, Kd=10, dt=0.05)
                 else:
                     v,w = move_to_point(self.current_pose, self.path[0], self.Kv, self.Kw)
-                    # self.is_moving = True
-                # print(v,w)
         
         # Publish velocity commands
         self.__send_command__(v, w)
     
 
-    # PUBLISHER HELPERS
+    #--------------    Arbitrary Functions and Visualization ------------------------------------------
 
-    # Transform linear and angular velocity (v, w) into a Twist message and publish it
+    '''
+    distance between the current pose and the goal pose
+    '''
+    def distance_to_goal(self):       
+        if self.goal is None:
+            return 0.0
+        return sqrt(( self.goal[0] - self.current_pose[0])**2 + ( self.goal[1] - self.current_pose[1])**2)
+    
+    '''
+    Transform linear and angular velocity (v, w) into a Twist message and publish it
+    '''
     def __send_command__(self, v, w):
         cmd = Twist()
         cmd.linear.x = np.clip(v, -self.v_max, self.v_max)
@@ -321,17 +318,9 @@ class OnlinePlanner:
                 m.colors.append(color_red)
             
             self.marker_pub.publish(m)
+
         
-    def distance_to_goal(self):        #distance between the current pose and the goal pose 
-        if self.goal is None:
-            return 0.0
-        return sqrt(( self.goal[0] - self.current_pose[0])**2 + ( self.goal[1] - self.current_pose[1])**2)
-        
-# MAIN FUNCTION
 if __name__ == '__main__':
     rospy.init_node('turtlebot_online_path_planning_node')   
-    ##############     neigborhood size comparison    #######################
     node = OnlinePlanner('/projected_map', '/odom', '/cmd_vel', np.array([-15.0, 15.0]), 0.2)
-    
-    # Run forever
     rospy.spin()
