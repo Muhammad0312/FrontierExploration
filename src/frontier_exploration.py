@@ -69,8 +69,6 @@ class FrontierExplorer:
         self.marker_frontier_lines = MarkerArray()
         self.marker_frontier_lines.markers = []
 
-        # self.set_goal = rospy.Service('/set_goal', posePoint, self.get_goal)
-
         self.client = actionlib.SimpleActionClient('move_to_point', go_to_pointAction)
         self.client.wait_for_server()
         self.get_goal()
@@ -108,27 +106,28 @@ class FrontierExplorer:
             
 
     def get_goal(self):    
-
+        
+        # if we have started or if the point is reached
         while self.started or self.client.get_result(): 
             self.started = False
             print('self.dist_to_goal',self.dist_to_goal)
+
             if self.odom_received and self.map_received:
-                # self.client.set_result()
+
                 self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
 
+                # call the main function to get a list of candidate points according to selected IG
                 candidate_pts_ordered, labelled_frontiers = self.frontierDetector.getCandidatePoint(criterion='distance')
-
+                
+                # convert the occupancy candidate points to real world points
                 candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
             
-                # print('selected candidate: ',candidate_pts_ordered[0,0], candidate_pts_ordered[0,1])
-
-                # Publishing
-                # self.publish_frontier_points(candidate_pts_catesian)
-
-                # print(candidate_pts_catesian[0,0], candidate_pts_catesian[0,1])
-                print(candidate_pts_catesian.shape)
+                # publish the highest priority candidate point for visualization
                 self.publish_frontier_points([[candidate_pts_catesian[0,0], candidate_pts_catesian[0,1]]])
-                self.publish_frontier_lines(labelled_frontiers,)
+                
+                # publish frontier lines for visualization
+                self.publish_frontier_lines(labelled_frontiers)
+
 
                 self.goal = go_to_pointGoal(goal_x = candidate_pts_catesian[0,0], goal_y = candidate_pts_catesian[0,1])
                 self.client.send_goal(self.goal, feedback_cb = self.feedback_cb)
@@ -136,7 +135,6 @@ class FrontierExplorer:
                 # print("Get feedback: ",self.client.get_feedback())
                 print("Get result: ",self.client.get_result())
 
-        # return([candidate_pts_catesian[0,0],candidate_pts_catesian[0,1]])
 
 
     def flatten_array(self,lst):
