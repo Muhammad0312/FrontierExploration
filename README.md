@@ -42,13 +42,27 @@ The same package is also used to extract the centroids of each of the clustered 
 
 <img src="media/report_images/frontier_4.png" alt="testing" height="300">
 
-The select_point() method is responsible for creating a sorted list of points according to the IG criterion described. Different functions are created for different IG criterion.
+The select_point() method is responsible for creating a sorted list of points according to the IG criterion described. Different functions are created for different IG criterion. These include:
+1. nearest_frontier
+2. farthest_frontier
+3. maximum_area
+4. maximum_information_gain
+5. biggest_cluster
+6. dist_weighted_information_gain
 
 Finally after all this, the get_candidate_point() method of the FrontierDetector class returns the ordered list of candidate points to the get_goal function of frontier_exploration node. Then the first point is selected and sent as goal to the move_to_point node.
 
 All other functions in this node are either visualizations or helper functions.
 
 ## move_to_pt
+
+The move_to_pt node acts as a action server, which receives the goal point, and responsible for motion planning and control of the robot. The main 2 deisgn choices are motion planner and controller. Currently there are 9 motion planner choices. RRTStarOMPL, InRRTStar-, FMT-, BIT-, InRRTStar-Dubins, FMT-Dubins, BIT-Dubins, InRRTStar-BSpline. FMT-BSpline, BIT-BSpline
+
+The motion planners that include Dubins or Spline need a curved controller. A sample of setting the two variables in the init of the node is shown below:
+
+**self.planner_config = 'BIT-'**
+
+**self.curved_coltroller = False**
 
 
 

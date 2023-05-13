@@ -2,82 +2,84 @@
 from asyncore import loop
 import rospy
 import numpy as np
-from std_msgs.msg import String
-from std_msgs.msg import Int32MultiArray
-from std_msgs.msg import Float64MultiArray
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import PoseStamped
-from gazebo_msgs.msg import ModelStates
-from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-from visualization_msgs.msg import Marker
+from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 from std_msgs.msg import ColorRGBA 
-from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import PoseStamped, Pose, PointStamped
 import roslib
 import tf
 import cv2
 import os
 import math
 from std_srvs.srv import Trigger, TriggerRequest
-import actionlib
 
+# action related imports
+import actionlib
 from frontier_explorationb.srv import posePoint
 from frontier_explorationb.msg import go_to_pointAction, go_to_pointGoal
 
-from utils_lib.frontier_classes import FrontierDetector
+# include other files
+from utils_lib.frontier_class import FrontierDetector
 
-from std_msgs.msg import ColorRGBA
-from visualization_msgs.msg import Marker
-from visualization_msgs.msg import MarkerArray
 
 class FrontierExplorer:       
     def __init__(self):
 
+        self.criterion = 0
+
         # Current robot pose [x, y, yaw], None if unknown            
         self.current_pose = None
-        
-        self.motion_busy = None
 
+        # store map as a msg to send to frontier class
         self.map_msg = None
 
+        # action feedbacl variable
         self.dist_to_goal = math.inf
 
+        # arbitrary flags
         self.odom_received = False
         self.map_received =  False
         self.started = True
 
+        # map variables
         self.map_origin = None
         self.map_resolution = None
 
+        # frontier detector class
         self.frontierDetector = FrontierDetector()
             
-        # Subscribe to map: Every time new map appears, recompute frontiers 
+        # Subscribe to map: Every time new map appears, update map and its info
         self.map_subscriber = rospy.Subscriber("/projected_map", OccupancyGrid, self.projected_map_callback)
 
         # Subscribe to robot pose: Get robot pose
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.get_odom)
 
-        # Publish: Frontier Points for Visualization
+        # Publish: candidate points and frontier lines for Visualization
         self.frontier_points_pub = rospy.Publisher("/frontier_detection/vis_points",MarkerArray,queue_size=1) #occupancy grid publisher
         self.frontier_lines_pub = rospy.Publisher("/frontier_detection/vis_lines",MarkerArray,queue_size=1) #occupancy grid publisher
 
+        # Marker Arrays used for Visualization
         self.marker_candidate_points = MarkerArray()
         self.marker_candidate_points.markers = []
-
         self.marker_frontier_lines = MarkerArray()
         self.marker_frontier_lines.markers = []
 
+        # Action client to connect to move_to_point server
         self.client = actionlib.SimpleActionClient('move_to_point', go_to_pointAction)
         self.client.wait_for_server()
         self.get_goal()
         
-
+    '''
+    Action feedback computation
+    '''
     def feedback_cb(self, feedback):
         self.dist_to_goal = feedback.dist_to_goal
 
-    # Odometry callback: Gets current robot pose and stores it into self.current_pose
+    '''
+    Odometry callback: 
+    Gets current robot pose and stores it into self.current_pose
+    '''
     def get_odom(self, odom):
         _, _, yaw = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x, 
                                                               odom.pose.pose.orientation.y,
@@ -85,39 +87,37 @@ class FrontierExplorer:
                                                               odom.pose.pose.orientation.w])
         self.current_pose = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, yaw])
         self.odom_received =  True
-        # print('in odom')
-        # self.goal = go_to_pointGoal(goal_x = self.current_pose[0], goal_y = self.current_pose[1])
-        # self.client.send_goal(self.goal, feedback_cb = self.feedback_cb)
-        # self.client.wait_for_result()
-        # # print("Get feedback: ",self.client.get_feedback())
-        # print("Get result: ",self.client.get_result())
-
+    
+    '''
+    occupancy map callback: 
+    Called when a new occupancy grid is received. Stores map and its info
+    '''
     def projected_map_callback(self, data):
-        '''
-        Called when a new occupancy grid is received. 
-        ''' 
         self.map_msg = data
         self.map_received = True
         self.map_origin = [data.info.origin.position.x, data.info.origin.position.y] 
         self.map_resolution = data.info.resolution
-        # If the robot is currently not moving, give it the highest priority candidate point (closes)
-        # if self.odom_received:
-        #     self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
             
-
+    '''
+    The main action server functions
+    Responsible for computing the candidate point, and sending it to the move_to
+    '''
     def get_goal(self):    
         
         # if we have started or if the point is reached
         while self.started or self.client.get_result(): 
             self.started = False
+
+            # print the action feedback
             print('self.dist_to_goal',self.dist_to_goal)
 
             if self.odom_received and self.map_received:
 
+                # update the map and pose in the class
                 self.frontierDetector.set_mapNpose(self.map_msg, self.current_pose)
 
                 # call the main function to get a list of candidate points according to selected IG
-                candidate_pts_ordered, labelled_frontiers = self.frontierDetector.getCandidatePoint(criterion='distance')
+                candidate_pts_ordered, labelled_frontiers = self.frontierDetector.getCandidatePoint(self.criterion)
                 
                 # convert the occupancy candidate points to real world points
                 candidate_pts_catesian = self.frontierDetector.all_map_to_position(candidate_pts_ordered)
@@ -128,23 +128,54 @@ class FrontierExplorer:
                 # publish frontier lines for visualization
                 self.publish_frontier_lines(labelled_frontiers)
 
-
+                # send the goal point to move_to_point server node
                 self.goal = go_to_pointGoal(goal_x = candidate_pts_catesian[0,0], goal_y = candidate_pts_catesian[0,1])
                 self.client.send_goal(self.goal, feedback_cb = self.feedback_cb)
                 self.client.wait_for_result()
-                # print("Get feedback: ",self.client.get_feedback())
                 print("Get result: ",self.client.get_result())
 
+    #--------------    Arbitrary Functions ------------------------------------------
+      
+    '''
+    Convert map position to world coordinates. 
+    '''
+    def __map_to_position__(self, p):
+        mx = p[1]*self.map_resolution+self.map_origin[0] 
+        my = p[0]*self.map_resolution+self.map_origin[1] 
+        return [mx,my]
 
-
-    def flatten_array(self,lst):
-        flat_lst = []
-        for obj in lst:
-            for item in obj:
-                flat_lst.append(item)
-        return flat_lst
+    '''
+    Converts a list of points in map coordinates to world coordinates
+    '''
+    def __all_map_to_position__(self, pts):
+        lst = []
+        for p in pts:
+            lst.append(self.__map_to_position__(p))
+        return np.array(lst)
     
-    # Publish a path as a series of line markers
+    #--------------    Visualization Functions
+
+    def __create_colors__(self,combs):
+        num_cols = np.ceil(np.cbrt(combs))
+        r = np.arange(0, 1.01, 1/(num_cols-1))
+        g = np.arange(0, 1.01, 1/(num_cols-1))
+        b = np.arange(0, 1.01, 1/(num_cols-1))
+        colors = []
+        for red in r:
+            for green in g:
+                for blue in b:
+                    colors.append([red,green,blue])
+
+        colors = colors[1:]
+        col_jump = int(len(colors)/combs)
+        
+        new_colors = []
+        for i in range(0,len(colors),col_jump):
+            new_colors.append(colors[i])
+        new_colors.append(colors[0])
+
+        return np.array(new_colors)
+
     def publish_frontier_points(self,data):   
         self.marker_candidate_points.markers = []
         for i in range(0,len(data)):
@@ -242,47 +273,6 @@ class FrontierExplorer:
         # self.frontier_lines_pub.publish(delete_markers)
         
         self.frontier_lines_pub.publish(self.marker_frontier_lines)
-
-      
-    '''
-    Convert map position to world coordinates. 
-    '''
-    def __map_to_position__(self, p):
-        mx = p[1]*self.map_resolution+self.map_origin[0] 
-        my = p[0]*self.map_resolution+self.map_origin[1] 
-        return [mx,my]
-
-
-    '''
-    Converts a list of points in map coordinates to world coordinates
-    '''
-    def __all_map_to_position__(self, pts):
-        lst = []
-        for p in pts:
-            lst.append(self.__map_to_position__(p))
-        return np.array(lst)
-    
-    def __create_colors__(self,combs):
-        num_cols = np.ceil(np.cbrt(combs))
-        r = np.arange(0, 1.01, 1/(num_cols-1))
-        g = np.arange(0, 1.01, 1/(num_cols-1))
-        b = np.arange(0, 1.01, 1/(num_cols-1))
-        colors = []
-        for red in r:
-            for green in g:
-                for blue in b:
-                    colors.append([red,green,blue])
-
-        colors = colors[1:]
-        col_jump = int(len(colors)/combs)
-        
-        new_colors = []
-        for i in range(0,len(colors),col_jump):
-            new_colors.append(colors[i])
-        new_colors.append(colors[0])
-
-        return np.array(new_colors)
-
 
 
 if __name__ == '__main__':

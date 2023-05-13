@@ -39,17 +39,21 @@ class OnlinePlanner:
         self.planner_config = 'BIT-'
         self.curved_coltroller = False
 
-        # ATTRIBUTE
         # List of points which define the plan. None if there is no plan
         self.path = []
+
         # State Validity Checker object                                                 
         self.svc = StateValidityChecker(distance_threshold)
-        # Current robot SE2 pose [x, y, yaw], None if unknown            
+
+        # Current robot pose [x, y, yaw]        
         self.current_pose = None
+
         # Goal where the robot has to move, None if it is not set                                                                   
         self.goal = None
+
         # Last time a map was received (to avoid map update too often)                                                
         self.last_map_time = rospy.Time.now()
+
         # Dominion [min_x_y, max_x_y] in which the path planner will sample configurations                           
         self.dominion = dominion         
 
@@ -72,27 +76,25 @@ class OnlinePlanner:
         # PUBLISHERS
         # Publisher for sending velocity commands to the robot
         self.cmd_pub = rospy.Publisher(cmd_vel_topic, Twist, queue_size=1) 
-        # TODO: publisher to cmd_vel_topic
+
         # Publisher for visualizing the path to with rviz
         self.marker_pub = rospy.Publisher('/turtlebot_online_path_planning/path_marker', Marker, queue_size=1)
         
         # SUBSCRIBERS  ----------------------------------------------------------------
 
-        # TODO: subscriber to gridmap_topic from Octomap Server, cb: get_gridmap
+        # subscriber to gridmap_topic from Octomap Server, cb: get_gridmap
         self.gridmap_sub = rospy.Subscriber("/projected_map", OccupancyGrid, self.get_gridmap) 
 
-        # TODO: subscriber to odom_topic, cb: get_odom 
+        # subscriber to odom_topic, cb: get_odom 
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.get_odom)
 
-        # rospy.wait_for_service('/set_goal')
-        # self.server_set_goal = rospy.ServiceProxy('/set_goal', posePoint)
-
-        self._as = actionlib.SimpleActionServer('move_to_point', go_to_pointAction, execute_cb=self.execute_cb, auto_start = False)
+        # action client
+        self._as = actionlib.SimpleActionServer('move_to_point', go_to_pointAction, execute_cb=self.execute_action, auto_start = False)
         self._as.start()
 
         rospy.Timer(rospy.Duration(0.05), self.controller)
         
-    def execute_cb(self, goal):
+    def execute_action(self, goal):
         # helper variables
         r = rospy.Rate(1)
         success = False
