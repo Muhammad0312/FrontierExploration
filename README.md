@@ -4,6 +4,7 @@
 Real Robot
 
 ![Exploration](media/x2.gif)
+
 RVIZ
 
 ![Exploration](media/rviz.gif)
