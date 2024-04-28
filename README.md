@@ -23,6 +23,16 @@ Modify the two attributes in move_to_point.py to set planner config. See code fo
 1. self.planner_config = 'BIT-'
 2. self.curved_coltroller = False
 
+# Results
+
+![Exploration](media/x2.gif)
+
+![Exploration](media/rviz.gif)
+
+For a video demo [Exploration](media/x2.mp4) [RVIZ](media/rviz.mp4) 
+
+
+
 # Explanation
 
 # Nodes
