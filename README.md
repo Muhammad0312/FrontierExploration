@@ -1,4 +1,14 @@
 ﻿# Frontier Exploration - Hands-on Planning
+
+# Results
+
+![Exploration](media/x2.gif)
+
+![Exploration](media/rviz.gif)
+
+For a video demo [Exploration](media/x2.mp4) [RVIZ](media/rviz.mp4) 
+
+
 ## Dependencies:
 - pip install scikit-image
 
@@ -22,15 +32,6 @@ General path planner parameters (eg dominion) can be modified from the init of m
 Modify the two attributes in move_to_point.py to set planner config. See code for options:
 1. self.planner_config = 'BIT-'
 2. self.curved_coltroller = False
-
-# Results
-
-![Exploration](media/x2.gif)
-
-![Exploration](media/rviz.gif)
-
-For a video demo [Exploration](media/x2.mp4) [RVIZ](media/rviz.mp4) 
-
 
 
 # Explanation
